@@ -1,0 +1,19 @@
+{
+  "id": "modern_bag_ui",
+  "name": "Modern Bag UI",
+  "version": "0.1.1",
+  "github": "piftee/gen1recomp-modern-bag-ui",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "content",
+  "game_version": ">=0.0.0-dev <1.0.0",
+  "category": "UI",
+  "priority": 100,
+  "dependencies": [],
+  "optional_dependencies": ["modern_party_ui"],
+  "conflicts": [],
+  "incompatible": [],
+  "permissions": ["engine_internals"],
+  "experimental": false,
+  "description": "A responsive, pocket-based Bag with item details and Gen 1 styling."
+}

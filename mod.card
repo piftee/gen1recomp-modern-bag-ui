@@ -1,0 +1,25 @@
+return {
+  summary = "A responsive pocket-based Bag made from Gen 1 UI materials.",
+  author = "ishhodaszi",
+  tags = { "ui", "quality-of-life", "cosmetic" },
+  differences = {
+    changed = {
+      "Bag presentation and left/right navigation",
+      "Item list information hierarchy",
+    },
+    added = {
+      "All, Items, Medicine, Poké Balls, Battle, TMs/HMs and Key Items pockets",
+      "Selected-item details and contextual pocket artwork",
+      "Responsive widescreen layout",
+      "Per-pocket cursor memory and pocket-safe item reordering",
+    },
+    known = {
+      "Uses the engine_internals permission to retain the complete built-in Bag controller",
+      "Other mods that replace the BagMenu screen itself conflict by design",
+    },
+  },
+  credits = {
+    { who = "Gen1Recomp", for_ = "native mod platform and original UI renderer" },
+  },
+  compat = { engine = ">=0.0.0-dev <1.0.0", modApi = 2 },
+}

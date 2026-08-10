@@ -1,0 +1,72 @@
+-- Visual smoke test. Run from the repository root:
+--   SHOT_DIR=/tmp/modern-bag-ui \
+--   POKEPORT_DRIVER=mods/modern_bag_ui/tests/preview_driver.lua \
+--   POKEPORT_IDENTITY=modern-bag-preview POKEPORT_VERSION=red love .
+return function(game)
+  local U = dofile("tests/drivers/util.lua")
+  local Bag = require("src.inventory.Bag")
+  local Font = require("src.render.Font")
+  local PaletteFX = require("src.render.PaletteFX")
+  local Screens = require("src.ui.Screens")
+  local TextBox = require("src.render.TextBox")
+  local DIR = os.getenv("SHOT_DIR") or "/tmp/modern-bag-ui"
+
+  love.window.setMode(1280, 720, {
+    resizable = true, minwidth = 640, minheight = 576,
+  })
+  game.save.options = game.save.options or {}
+  game.save.options.colors = "redpp"
+  PaletteFX.setMode("redpp")
+  game.save.inventory = {}
+  game.save.bagOrder = nil
+  game.save.money = 18420
+
+  local inventory = {
+    { "POTION", 7 }, { "SUPER_POTION", 3 }, { "ANTIDOTE", 4 },
+    { "POKE_BALL", 12 }, { "GREAT_BALL", 5 },
+    { "ESCAPE_ROPE", 2 }, { "REPEL", 6 }, { "FIRE_STONE", 1 },
+    { "X_ATTACK", 2 }, { "DIRE_HIT", 1 },
+    { "TM_THUNDERBOLT", 1 }, { "HM_CUT", 1 },
+    { "BICYCLE", 1 }, { "TOWN_MAP", 1 }, { "ITEMFINDER", 1 },
+  }
+  for _, entry in ipairs(inventory) do
+    if game.data.items[entry[1]] then
+      Bag.add(game.save, entry[1], entry[2], game.data)
+    end
+  end
+
+  while game.stack:top() do game.stack:pop() end
+  local menu = Screens.push(game, "BagMenu", {})
+  U.wait(12)
+  U.log(menu.modernBagUI and "PASS modern Bag is active"
+    or "FAIL modern Bag was not registered")
+  U.shot(game, DIR .. "/modern_bag_all.png")
+
+  -- Medicine pocket, with SUPER POTION selected for a populated details pane.
+  menu:modernBagSwitchPocket(1)
+  menu:modernBagSwitchPocket(1)
+  menu.index = math.min(2, #menu.items)
+  local medicineRows = {}
+  for _, item in ipairs(menu.items) do medicineRows[#medicineRows + 1] = item.value end
+  U.log("medicine rows:", table.concat(medicineRows, ", "))
+  U.wait(8)
+  U.shot(game, DIR .. "/modern_bag_medicine.png")
+
+  -- Regression preview: DYNAMIC used to dock this classic 160px source rect
+  -- against a wider Bag canvas and splice unrelated pixels into the box.
+  game.save.options.uiLayout = "dynamic"
+  local box = TextBox.new(game, "It won't have\nany effect.")
+  box.shown = {
+    Font.encode("It won't have"), Font.encode("any effect."),
+  }
+  box.done, box.waiting, box.blink = true, false, 31
+  game.stack:push(box)
+  U.wait(8)
+  U.shot(game, DIR .. "/modern_bag_message.png")
+  game.stack:pop()
+
+  -- Key Items gives the palette and procedural artwork a second visual pass.
+  for _ = 1, 4 do menu:modernBagSwitchPocket(1) end
+  U.wait(8)
+  U.shot(game, DIR .. "/modern_bag_key_items.png")
+end
