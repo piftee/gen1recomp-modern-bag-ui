@@ -11,6 +11,7 @@ return {
       "All, Items, Medicine, Poké Balls, Battle, TMs/HMs and Key Items pockets",
       "Selected-item details and contextual pocket artwork",
       "Responsive widescreen layout",
+      "Portrait phone layout with a stacked detail card and expanded item list",
       "Per-pocket cursor memory and pocket-safe item reordering",
     },
     known = {

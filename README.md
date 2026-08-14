@@ -3,6 +3,8 @@
 Modern Bag UI rebuilds the bare item list as a responsive, pocket-based Bag
 while keeping Gen 1's font, palettes, sounds and item behavior.
 
+**[Download the latest installable release](https://github.com/piftee/gen1recomp-modern-bag-ui/releases/latest)**
+
 ## What changes
 
 - seven pockets: All, Items, Medicine, Poké Balls, Battle, TMs/HMs and Key Items
@@ -10,6 +12,7 @@ while keeping Gen 1's font, palettes, sounds and item behavior.
 - a wider item list with selected-item details, quantities, money and capacity
 - pocket-specific illustrations drawn from the Game Boy's four visual shades
 - responsive width that makes useful space on modern displays
+- a portrait phone layout with more rows, stacked item details and readable controls
 - safe item reordering inside both the All list and filtered pockets
 
 The first **All** pocket keeps every carried item in acquisition order, so the

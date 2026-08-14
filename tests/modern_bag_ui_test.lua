@@ -132,8 +132,37 @@ end
 local graphics = love.graphics
 local realPixelDimensions = graphics.getPixelDimensions
 graphics.getPixelDimensions = function() return 1280, 720 end
-T.eq(select(1, screen:uiSize()), 256,
+local landscapeW, landscapeH = screen:uiSize()
+T.eq(landscapeW, 256,
   "a 16:9 window exposes a 256x144 responsive Bag surface")
+T.eq(landscapeH, 144,
+  "a landscape Bag keeps the Game Boy screen height")
+
+graphics.getPixelDimensions = function() return 998, 1980 end
+local portraitW, portraitH = screen:uiSize()
+T.eq(portraitW, 160,
+  "a tall phone keeps the readable 160px Bag width")
+T.eq(portraitH, 330,
+  "a tall phone uses the full portrait height at the same integer scale")
+game.renderer = { uiSize = function() return portraitW, portraitH end }
+local portrait = screen:modernBagLayoutInfo()
+T.check(portrait.stacked and portrait.showDetails,
+  "portrait switches to the stacked list and item-detail layout")
+T.eq(portrait.rows, 10,
+  "portrait uses its extra height to expose more inventory rows")
+T.check(portrait.detailY > portrait.listY + portrait.listH,
+  "the mobile detail card sits below the list without overlapping it")
+T.eq(portrait.footerY + portrait.footerH, portraitH,
+  "the two-line mobile controls stay inside the bottom edge")
+local portraitDrawOK, portraitDrawErr = pcall(screen.draw, screen)
+T.check(portraitDrawOK,
+  "the complete portrait Bag draws headlessly: " .. tostring(portraitDrawErr))
+local portraitZones = screen:sgbPalettes(game) or {}
+T.eq(portraitZones[1] and portraitZones[1].h, portraitH,
+  "portrait palette coverage reaches the full mobile surface")
+T.check(portraitZones[3] and portraitZones[3].y == portrait.detailY,
+  "the stacked detail card receives the active pocket palette")
+game.renderer = nil
 graphics.getPixelDimensions = realPixelDimensions
 
 local function press(key)
