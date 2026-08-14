@@ -69,4 +69,14 @@ return function(game)
   for _ = 1, 4 do menu:modernBagSwitchPocket(1) end
   U.wait(8)
   U.shot(game, DIR .. "/modern_bag_key_items.png")
+
+  -- Portrait phones use a taller native-pixel surface instead of centring a
+  -- cramped 160x144 desktop composition between large black bars.
+  love.window.setMode(480, 960, {
+    resizable = true, minwidth = 160, minheight = 144,
+  })
+  menu.modernBagPocket = 1
+  menu:modernBagRefresh(menu.items[menu.index] and menu.items[menu.index].value)
+  U.wait(12)
+  U.shot(game, DIR .. "/modern_bag_mobile_portrait.png")
 end

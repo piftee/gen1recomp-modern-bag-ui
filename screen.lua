@@ -16,10 +16,10 @@ return function(mod)
 
   local SCREEN_H = 144
   local HEADER_H = 16
-  local TABS_Y = 16
   local TABS_H = 20
-  local CONTENT_Y = TABS_Y + TABS_H
-  local FOOTER_Y = 136
+  local FOOTER_H = 8
+  local PORTRAIT_MIN_H = 224
+  local PORTRAIT_MAX_H = 400
   local ROWS = 6
   local ROW_H = 15
 
@@ -29,19 +29,19 @@ return function(mod)
   local BLACK = 0
 
   local POCKETS = {
-    { key = "all", label = "ALL ITEMS", palette = "BLUEMON",
+    { key = "all", label = "ALL ITEMS", short = "ALL", palette = "BLUEMON",
       blurb = "Everything you are carrying." },
-    { key = "items", label = "ITEMS", palette = "BROWNMON",
+    { key = "items", label = "ITEMS", short = "ITEMS", palette = "BROWNMON",
       blurb = "Useful items for your journey." },
-    { key = "medicine", label = "MEDICINE", palette = "GREENMON",
+    { key = "medicine", label = "MEDICINE", short = "MED", palette = "GREENMON",
       blurb = "Items that help your POKéMON." },
-    { key = "balls", label = "POKé BALLS", palette = "REDMON",
+    { key = "balls", label = "POKé BALLS", short = "BALLS", palette = "REDMON",
       blurb = "Devices for catching wild POKéMON." },
-    { key = "battle", label = "BATTLE", palette = "YELLOWMON",
+    { key = "battle", label = "BATTLE", short = "BATTLE", palette = "YELLOWMON",
       blurb = "Items that give an edge in battle." },
-    { key = "machines", label = "TMs/HMs", palette = "PURPLEMON",
+    { key = "machines", label = "TMs/HMs", short = "TMs", palette = "PURPLEMON",
       blurb = "Machines that teach new moves." },
-    { key = "key", label = "KEY ITEMS", palette = "CYANMON",
+    { key = "key", label = "KEY ITEMS", short = "KEY", palette = "CYANMON",
       blurb = "Important items for your adventure." },
   }
 
@@ -206,43 +206,90 @@ return function(mod)
     end
   end
 
-  local function responsiveWidth()
+  local function displayPixels()
     local width, height
     if love.graphics.getPixelDimensions then
       width, height = love.graphics.getPixelDimensions()
     else
       width, height = love.graphics.getDimensions()
     end
-    width, height = tonumber(width) or 160, tonumber(height) or SCREEN_H
+    return tonumber(width) or 160, tonumber(height) or SCREEN_H
+  end
+
+  local function responsiveSize()
+    local width, height = displayPixels()
+
+    -- A wide window keeps the original 144px-tall responsive surface. A
+    -- phone in portrait needs the inverse treatment: lock the readable
+    -- 160px width, then use the vertical pixels available at that same
+    -- integer scale. This avoids both a postage-stamp Bag and resampled text.
+    local portraitScale = math.max(1, math.floor(width / 160))
+    local portraitHeight = math.min(PORTRAIT_MAX_H,
+      math.floor(height / portraitScale))
+    if height >= width * 1.35 and portraitHeight >= PORTRAIT_MIN_H then
+      return 160, portraitHeight
+    end
+
     local scale = math.max(1, math.floor(height / SCREEN_H))
-    return math.max(160, math.min(400, math.floor(width / scale)))
+    return math.max(160, math.min(400, math.floor(width / scale))), SCREEN_H
   end
 
   local function uiSize()
-    return responsiveWidth(), SCREEN_H
+    return responsiveSize()
   end
 
   local function layoutFor(menu)
-    local width = responsiveWidth()
+    local width, height = responsiveSize()
     local renderer = menu and menu.game and menu.game.renderer
     if renderer and renderer.uiSize then
-      width = select(1, renderer:uiSize()) or width
+      local rendererW, rendererH = renderer:uiSize()
+      width, height = rendererW or width, rendererH or height
     end
     width = math.max(160, math.floor(width))
+    height = math.max(SCREEN_H, math.floor(height))
     local wide = width >= 196
-    local listW = wide and math.floor(width * 0.54) or width - 8
-    listW = math.max(96, listW)
+    local stacked = not wide and height >= PORTRAIT_MIN_H
+    local headerH = stacked and 24 or HEADER_H
+    local tabsY = headerH
+    local contentY = tabsY + TABS_H
+    local footerH = stacked and 20 or FOOTER_H
+    local footerY = height - footerH
+    local listY = contentY + 3
+
+    if stacked then
+      local detailMinH = 82
+      local rows = math.floor((footerY - listY - detailMinH - 12) / ROW_H)
+      rows = math.max(4, math.min(10, rows))
+      local listH = rows * ROW_H + 8
+      local detailY = listY + listH + 4
+      return {
+        width = width, height = height,
+        wide = false, stacked = true, showDetails = true,
+        headerH = headerH, tabsY = tabsY, tabsH = TABS_H,
+        contentY = contentY, footerY = footerY, footerH = footerH,
+        rows = rows,
+        listX = 4, listY = listY, listW = width - 12, listH = listH,
+        detailX = 4, detailY = detailY,
+        detailW = width - 8, detailH = footerY - detailY - 3,
+      }
+    end
+
+    local listColumnW = wide and math.floor(width * 0.54) or width - 8
+    listColumnW = math.max(96, listColumnW)
     return {
-      width = width,
-      wide = wide,
+      width = width, height = height,
+      wide = wide, stacked = false, showDetails = wide,
+      headerH = headerH, tabsY = tabsY, tabsH = TABS_H,
+      contentY = contentY, footerY = footerY, footerH = footerH,
+      rows = ROWS,
       listX = 4,
-      listY = CONTENT_Y + 3,
-      listW = listW - 4,
-      listH = FOOTER_Y - CONTENT_Y - 6,
-      detailX = listW + 4,
-      detailY = CONTENT_Y + 3,
-      detailW = width - listW - 8,
-      detailH = FOOTER_Y - CONTENT_Y - 6,
+      listY = listY,
+      listW = listColumnW - 4,
+      listH = footerY - contentY - 6,
+      detailX = listColumnW + 4,
+      detailY = listY,
+      detailW = width - listColumnW - 8,
+      detailH = footerY - contentY - 6,
     }
   end
 
@@ -301,11 +348,12 @@ return function(mod)
 
   local function clampList(menu)
     local count = #menu.items
+    local rows = math.max(1, menu.rows or ROWS)
     menu.index = math.max(1, math.min(menu.index or 1, math.max(1, count)))
     menu.scroll = math.max(0, math.min(menu.scroll or 0,
-      math.max(0, count - ROWS)))
-    if menu.index - menu.scroll > ROWS then
-      menu.scroll = menu.index - ROWS
+      math.max(0, count - rows)))
+    if menu.index - menu.scroll > rows then
+      menu.scroll = menu.index - rows
     elseif menu.index - menu.scroll < 1 then
       menu.scroll = menu.index - 1
     end
@@ -468,33 +516,37 @@ return function(mod)
 
   local function drawBackdrop(layout)
     gray(WHITE)
-    love.graphics.rectangle("fill", 0, 0, layout.width, SCREEN_H)
+    love.graphics.rectangle("fill", 0, 0, layout.width, layout.height)
     gray(LIGHT)
-    for x = -SCREEN_H, layout.width, 24 do
-      love.graphics.line(x, CONTENT_Y, x + SCREEN_H, FOOTER_Y)
+    for x = -layout.height, layout.width, 24 do
+      love.graphics.line(x, layout.contentY, x + layout.height, layout.footerY)
     end
   end
 
   local function drawHeader(menu, layout, counts)
     local pocket = pocketFor(menu)
     gray(DARK)
-    love.graphics.rectangle("fill", 0, 0, layout.width, HEADER_H)
-    drawText(Strings("BAG"), 5, 4, 32, WHITE)
-
-    local center = Strings(pocket.label) .. " " .. tostring(counts[pocket.key] or 0)
-    local centerWidth = math.max(40, layout.width - 96)
-    center = fitText(center, centerWidth)
-    drawText(center, (layout.width - Font.width(center)) / 2, 4,
-      centerWidth, WHITE)
+    love.graphics.rectangle("fill", 0, 0, layout.width, layout.headerH)
+    drawText(Strings("BAG"), 5, layout.stacked and 2 or 4, 32, WHITE)
 
     local capacity = ("%d/%d"):format(Bag.slots(menu.game.save),
       Bag.capacity(menu.game.data))
-    drawTextRight(capacity, layout.width - 5, 4, 48, WHITE)
+    drawTextRight(capacity, layout.width - 5, layout.stacked and 2 or 4,
+      48, WHITE)
+
+    local label = (layout.wide or layout.stacked) and pocket.label or pocket.short
+    local center = Strings(label) .. " " .. tostring(counts[pocket.key] or 0)
+    local centerWidth = layout.stacked and (layout.width - 10)
+      or math.max(40, layout.width - 96)
+    center = fitText(center, centerWidth)
+    drawText(center, (layout.width - Font.width(center)) / 2,
+      layout.stacked and 13 or 4,
+      centerWidth, WHITE)
   end
 
   local function drawTabs(menu, layout, counts)
     gray(LIGHT)
-    love.graphics.rectangle("fill", 0, TABS_Y, layout.width, TABS_H)
+    love.graphics.rectangle("fill", 0, layout.tabsY, layout.width, layout.tabsH)
     local gap = layout.width >= 210 and 3 or 1
     local available = layout.width - 8 - gap * (#POCKETS - 1)
     local tabW = math.floor(available / #POCKETS)
@@ -506,20 +558,22 @@ return function(mod)
       local active = index == menu.modernBagPocket
       if active then
         gray(BLACK)
-        chamfer("fill", x, TABS_Y + 1, tabW, TABS_H - 1, 2)
+        chamfer("fill", x, layout.tabsY + 1, tabW, layout.tabsH - 1, 2)
         gray(DARK)
-        chamfer("fill", x + 1, TABS_Y + 2, tabW - 2, TABS_H - 3, 2)
+        chamfer("fill", x + 1, layout.tabsY + 2,
+          tabW - 2, layout.tabsH - 3, 2)
       else
         gray(WHITE)
-        chamfer("fill", x, TABS_Y + 3, tabW, TABS_H - 5, 2)
+        chamfer("fill", x, layout.tabsY + 3,
+          tabW, layout.tabsH - 5, 2)
       end
       local iconSize = math.min(10, tabW - 4)
       drawPocketSymbol(pocket.key,
-        x + math.floor((tabW - iconSize) / 2), TABS_Y + 4, iconSize)
+        x + math.floor((tabW - iconSize) / 2), layout.tabsY + 4, iconSize)
       gray(active and WHITE or DARK)
       local markerW = math.min(tabW - 6, math.max(2, counts[pocket.key] or 0))
       love.graphics.rectangle("fill", x + math.floor((tabW - markerW) / 2),
-        TABS_Y + TABS_H - 3, markerW, 2)
+        layout.tabsY + layout.tabsH - 3, markerW, 2)
     end
   end
 
@@ -543,7 +597,7 @@ return function(mod)
       return
     end
 
-    for row = 1, ROWS do
+    for row = 1, layout.rows do
       local index = menu.scroll + row
       local item = menu.items[index]
       if not item then break end
@@ -588,7 +642,7 @@ return function(mod)
           layout.listY + 2, 3, 2)
       end
     end
-    if menu.scroll + ROWS < #menu.items then
+    if menu.scroll + layout.rows < #menu.items then
       gray(DARK)
       if love.graphics.polygon then
         love.graphics.polygon("fill", layout.listX + layout.listW - 8,
@@ -627,8 +681,49 @@ return function(mod)
   end
 
   local function drawDetails(menu, layout)
-    if not layout.wide then return end
+    if not layout.showDetails then return end
     local pocket = pocketFor(menu)
+
+    if layout.stacked then
+      gray(BLACK)
+      chamfer("fill", layout.detailX + 2, layout.detailY + 2,
+        layout.detailW, layout.detailH, 4)
+      gray(WHITE)
+      chamfer("fill", layout.detailX, layout.detailY,
+        layout.detailW, layout.detailH, 4)
+      gray(LIGHT)
+      chamfer("fill", layout.detailX + 2, layout.detailY + 2,
+        layout.detailW - 4, layout.detailH - 4, 3)
+
+      local item = menu.items[menu.index]
+      local caption = item and categoryFor(menu.game, item.value) or pocket.key
+      drawText(caption:upper(), layout.detailX + 6, layout.detailY + 5,
+        math.floor(layout.detailW * 0.58), DARK)
+      local money = ("¥%d"):format(menu.game.save.money or 0)
+      drawTextRight(money, layout.detailX + layout.detailW - 6,
+        layout.detailY + 5, math.floor(layout.detailW * 0.42), DARK)
+
+      local category = item and categoryFor(menu.game, item.value) or pocket.key
+      local iconSize = math.min(28, math.max(20, layout.detailH - 56))
+      drawPocketSymbol(category, layout.detailX + 8, layout.detailY + 20,
+        iconSize)
+      local textX = layout.detailX + iconSize + 14
+      local textW = layout.detailX + layout.detailW - 6 - textX
+      local name = item and item.label or pocket.label
+      drawText(name, textX, layout.detailY + 24, textW, BLACK)
+      local description = item and itemDescription(menu, item.value) or pocket.blurb
+      local descriptionY = layout.detailY + 20 + iconSize + 4
+      local descriptionW = layout.detailW - 12
+      local maxLines = math.max(2, math.floor(
+        (layout.detailY + layout.detailH - 4 - descriptionY) / 9))
+      for index, line in ipairs(wrappedLines(
+          Strings(description), descriptionW, maxLines)) do
+        drawText(line, layout.detailX + 6,
+          descriptionY + (index - 1) * 9, descriptionW, DARK)
+      end
+      return
+    end
+
     gray(BLACK)
     chamfer("fill", layout.detailX + 2, layout.detailY + 2,
       layout.detailW, layout.detailH, 4)
@@ -680,7 +775,26 @@ return function(mod)
 
   local function drawFooter(menu, layout)
     gray(DARK)
-    love.graphics.rectangle("fill", 0, FOOTER_Y, layout.width, 8)
+    love.graphics.rectangle("fill", 0, layout.footerY,
+      layout.width, layout.footerH)
+    if layout.stacked then
+      local line1, line2
+      if menu.modernBagSwapId then
+        line1 = Strings("CHOOSE NEW POSITION")
+        line2 = Strings("A PLACE  B BACK")
+      else
+        line1 = Strings("L/R CHANGE POCKET")
+        line2 = Strings("A USE  B BACK")
+      end
+      line1 = fitText(line1, layout.width - 8)
+      line2 = fitText(line2, layout.width - 8)
+      drawText(line1, (layout.width - Font.width(line1)) / 2,
+        layout.footerY + 1, layout.width - 8, WHITE)
+      drawText(line2, (layout.width - Font.width(line2)) / 2,
+        layout.footerY + 11, layout.width - 8, WHITE)
+      return
+    end
+
     local message
     if menu.modernBagSwapId then
       message = Strings("CHOOSE A NEW POSITION")
@@ -691,12 +805,14 @@ return function(mod)
     end
     message = fitText(message, layout.width - 8)
     drawText(message, (layout.width - Font.width(message)) / 2,
-      FOOTER_Y, layout.width - 8, WHITE)
+      layout.footerY, layout.width - 8, WHITE)
   end
 
   local function draw(menu)
     syncInventory(menu)
     local layout = layoutFor(menu)
+    menu.rows = layout.rows
+    clampList(menu)
     local counts = pocketCounts(menu)
     drawBackdrop(layout)
     drawHeader(menu, layout, counts)
@@ -717,10 +833,10 @@ return function(mod)
     local accent = PaletteFX.pal(data, pocket.palette) or base
     if not base then return nil end
     local zones = {
-      { colors = base, x = 0, y = 0, w = layout.width, h = SCREEN_H },
-      { colors = accent, x = 0, y = 0, w = layout.width, h = CONTENT_Y },
+      { colors = base, x = 0, y = 0, w = layout.width, h = layout.height },
+      { colors = accent, x = 0, y = 0, w = layout.width, h = layout.contentY },
     }
-    if layout.wide then
+    if layout.showDetails then
       zones[#zones + 1] = {
         colors = accent,
         x = layout.detailX, y = layout.detailY,
@@ -739,6 +855,9 @@ return function(mod)
   end
 
   local function update(menu, dt)
+    local layout = layoutFor(menu)
+    menu.rows = layout.rows
+    clampList(menu)
     syncInventory(menu)
     local input = menu.game.input
     if not (input and input.wasPressed) then
@@ -765,7 +884,7 @@ return function(mod)
       menu.modernBagPocket = 1
       menu.modernBagPocketState = {}
       menu.modernBagSwapId = nil
-      menu.rows = ROWS
+      menu.rows = layoutFor(menu).rows
 
       menu.onSelectKey = function(item, list)
         reorder(list, item)
@@ -796,6 +915,7 @@ return function(mod)
       menu.modernBagLayout = "pockets"
       menu.modernBagPockets = POCKETS
       menu.modernBagCategoryFor = function(_, id) return categoryFor(game, id) end
+      menu.modernBagLayoutInfo = function() return layoutFor(menu) end
       menu.modernBagSwitchPocket = switchPocket
       menu.modernBagRefresh = rebuildPocket
       rebuildPocket(menu)
