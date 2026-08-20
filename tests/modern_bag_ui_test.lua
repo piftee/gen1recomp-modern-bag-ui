@@ -8,6 +8,9 @@ local ListMenu = require("src.ui.ListMenu")
 local PaletteFX = require("src.render.PaletteFX")
 
 local data = T.fixtures.fresh()
+data.strings = {
+  ["Restores 20 HP to one POKéMON."] = "HEALS TWENTY HP.",
+}
 data.items.POTION = {
   id = "POTION", name = "POTION", price = 300,
 }
@@ -75,10 +78,30 @@ PaletteFX.setMode("gbc")
 
 local run = T.sdk.loadMod("mods/modern_bag_ui", { data = data, dev = true })
 T.eq(#run.errors, 0, "loads clean (" .. tostring(run.errors[1]) .. ")")
+require("src.core.Strings").load(run.data)
 
 local record = run.data.screens and run.data.screens.BagMenu
 T.check(type(record) == "table" and type(record.new) == "function",
   "the BagMenu screen record is registered")
+local pcRecord = run.data.screens and run.data.screens.PlayerPC
+T.check(type(pcRecord) == "table" and type(pcRecord.new) == "function",
+  "the native PlayerPC extension is registered")
+T.eq(Bag.capacity(run.data), 255,
+  "the Bag accepts the complete 255-id item space")
+
+local expandedSave = { inventory = {}, bagOrder = {} }
+T.check(Bag.add(expandedSave, "FIX_BIG_STACK", 999, run.data),
+  "a new item stack can be acquired directly at x999")
+T.eq(expandedSave.inventory.FIX_BIG_STACK, 999,
+  "the expanded quantity is stored without changing save shape")
+T.check(not Bag.add(expandedSave, "FIX_BIG_STACK", 1, run.data),
+  "a Bag stack cannot grow past x999")
+for i = 1, 24 do
+  T.check(Bag.add(expandedSave, "FIX_SLOT_" .. i, 1, run.data),
+    "expanded Bag slot " .. i .. " is available")
+end
+T.eq(Bag.slots(expandedSave), 25,
+  "the Bag can carry more than the cartridge's 20 unique items")
 
 local stack = { states = {} }
 function stack:push(state) self.states[#self.states + 1] = state end
@@ -88,6 +111,112 @@ function stack:top() return self.states[#self.states] end
 local input = { pressed = {} }
 function input:wasPressed(key) return self.pressed[key] == true end
 function input:isDown() return false end
+
+-- The extended Player PC delegates to the stock menus while raising their
+-- unique-item limit and keeping each stored stack at x999.
+local pcStack = { states = {} }
+function pcStack:push(state) self.states[#self.states + 1] = state end
+function pcStack:pop() return table.remove(self.states) end
+function pcStack:top() return self.states[#self.states] end
+
+local pcGame = {
+  data = run.data,
+  save = {
+    inventory = { POTION = 3 }, bagOrder = { "POTION" },
+    pcItems = { POTION = 998 },
+  },
+  stack = pcStack,
+  input = input,
+}
+local pcMenu = pcRecord.new(pcGame)
+pcStack:push(pcMenu)
+T.eq(pcGame.data.field.pcItemCap, 255,
+  "the item-storage PC accepts 255 unique stacks")
+pcMenu.items[2].onSelect()
+local depositList = pcStack:top()
+T.check(depositList ~= pcMenu and type(depositList.onChoose) == "function",
+  "DEPOSIT ITEM still opens the native PC item list")
+T.check(depositList.modernPCUI == true,
+  "PC item lists use the modern Bag visual system")
+T.eq(depositList.modernBagLayout, "pc-pockets",
+  "the PC identifies its responsive pocket layout")
+T.check(depositList:isWideBattleLayout(),
+  "the PC owns its responsive canvas while native overlays are visible")
+T.check(depositList.holdsUIAnchors == true,
+  "PC quantity prompts stay inside the composed modern surface")
+local pcLayout = depositList:modernBagLayoutInfo()
+T.eq(pcLayout.rows, 5,
+  "the classic-height PC layout reserves room for a readable status footer")
+local pcDrawOK, pcDrawErr = pcall(depositList.draw, depositList)
+T.check(pcDrawOK,
+  "the modern PC list draws headlessly: " .. tostring(pcDrawErr))
+local pcPixelDimensions = love.graphics.getPixelDimensions
+love.graphics.getPixelDimensions = function() return 998, 1980 end
+local mobilePCLayout = depositList:modernBagLayoutInfo()
+T.check(mobilePCLayout.stacked and mobilePCLayout.showDetails,
+  "the PC uses the Bag's stacked portrait layout on phones")
+local mobilePCDrawOK, mobilePCDrawErr = pcall(depositList.draw, depositList)
+love.graphics.getPixelDimensions = pcPixelDimensions
+T.check(mobilePCDrawOK,
+  "the portrait PC list draws headlessly: " .. tostring(mobilePCDrawErr))
+depositList:modernBagSwitchPocket(1)
+T.eq(#depositList.items, 0,
+  "PC pocket tabs filter the current deposit source")
+depositList:modernBagSwitchPocket(1)
+T.eq(depositList.items[1] and depositList.items[1].value, "POTION",
+  "the medicine PC pocket exposes the Potion")
+depositList:modernBagSwitchPocket(-2)
+T.eq(depositList.modernBagPocket, 1,
+  "the PC can return to its complete All pocket")
+depositList.onChoose(depositList.items[1], depositList)
+local quantity = pcStack:top()
+T.eq(quantity.max, 1,
+  "deposit quantity is capped by the remaining space in an x999 PC stack")
+T.check(type(quantity.draw) == "function",
+  "the three-digit native quantity selector has a widened renderer")
+local wideDrawOK, wideDrawErr = pcall(quantity.draw, quantity)
+T.check(wideDrawOK,
+  "the widened x999 quantity selector draws headlessly: "
+    .. tostring(wideDrawErr))
+pcStack:pop()
+quantity.onDone(1)
+T.eq(pcGame.save.pcItems.POTION, 999,
+  "a PC stack can reach x999")
+T.eq(pcGame.save.inventory.POTION, 2,
+  "the deposited quantity is removed from the Bag")
+local pcDepth = #pcStack.states
+depositList.onChoose(depositList.items[1], depositList)
+T.eq(#pcStack.states, pcDepth,
+  "a full x999 PC stack does not open another quantity prompt")
+T.check(depositList.footer ~= nil,
+  "a full PC stack reports that no storage room remains")
+
+local manyPCItems = {}
+for i = 1, 50 do manyPCItems["FIX_PC_" .. i] = 1 end
+local manyPCStack = { states = {} }
+function manyPCStack:push(state) self.states[#self.states + 1] = state end
+function manyPCStack:pop() return table.remove(self.states) end
+function manyPCStack:top() return self.states[#self.states] end
+local manyPCGame = {
+  data = run.data,
+  save = {
+    inventory = { ANTIDOTE = 1 }, bagOrder = { "ANTIDOTE" },
+    pcItems = manyPCItems,
+  },
+  stack = manyPCStack,
+  input = input,
+}
+local manyPCMenu = pcRecord.new(manyPCGame)
+manyPCStack:push(manyPCMenu)
+manyPCMenu.items[2].onSelect()
+local manyDepositList = manyPCStack:top()
+manyDepositList.onChoose(manyDepositList.items[1], manyDepositList)
+local manyQuantity = manyPCStack:pop()
+manyQuantity.onDone(1)
+T.eq(manyPCGame.save.pcItems.ANTIDOTE, 1,
+  "the PC can store a 51st unique item")
+T.eq(manyPCGame.save.inventory.ANTIDOTE, nil,
+  "the new PC stack is removed from the Bag normally")
 
 local order = {
   "ESCAPE_ROPE", "POTION", "ANTIDOTE", "POKE_BALL",
@@ -118,6 +247,22 @@ T.eq(#screen.items, #order,
   "the default All pocket preserves the complete acquisition-ordered list")
 T.eq(screen.items[1].value, "ESCAPE_ROPE",
   "the All pocket retains the first acquired item")
+
+local headerText = {}
+local originalFontDraw = Font.draw
+local originalHeaderPixelDimensions = love.graphics.getPixelDimensions
+love.graphics.getPixelDimensions = function() return 1280, 720 end
+Font.draw = function(text, x, y)
+  if y == 4 then headerText[#headerText + 1] = tostring(text) end
+end
+local headerDrawOK, headerDrawErr = pcall(screen.draw, screen)
+Font.draw = originalFontDraw
+love.graphics.getPixelDimensions = originalHeaderPixelDimensions
+T.check(headerDrawOK,
+  "the simplified slot-count header draws headlessly: "
+    .. tostring(headerDrawErr))
+T.eq(table.concat(headerText, "|"), "BAG|7/255|ALL ITEMS",
+  "the header shows the pocket label once and a single total/capacity count")
 
 local expectedCategories = {
   ESCAPE_ROPE = "items", POTION = "medicine", ANTIDOTE = "medicine",
@@ -211,7 +356,88 @@ T.check(actionMenu ~= screen and actionMenu.items
     and actionMenu.items[1].label == "USE"
     and actionMenu.items[2].label == "TOSS",
   "choosing an item still opens the built-in USE/TOSS menu")
+T.check(actionMenu.__modernBagResponsiveOverlay == true,
+  "the USE/TOSS menu retains the responsive Bag surface")
 stack:pop()
+actionMenu.items[2].onSelect()
+local bagQuantity = stack:top()
+T.eq(screen.modernBagPrompt, "How many?",
+  "TOSS displays its quantity prompt in the modern footer")
+T.check(bagQuantity.__modernBagResponsiveOverlay == true,
+  "the toss quantity box retains the Bag's responsive position")
+T.eq(screen:modernBagLayoutInfo().rows, 5,
+  "a visible Bag prompt reserves a second footer line")
+local promptDrawOK, promptDrawErr = pcall(screen.draw, screen)
+T.check(promptDrawOK,
+  "the Bag draws with its quantity prompt: " .. tostring(promptDrawErr))
+local bagOverlayPixels = love.graphics.getPixelDimensions
+love.graphics.getPixelDimensions = function() return 998, 1980 end
+local overlayW, overlayH = bagQuantity:uiSize()
+T.eq(overlayW, 160,
+  "a native Bag overlay keeps the portrait surface width")
+T.eq(overlayH, 330,
+  "a native Bag overlay keeps the portrait surface height")
+local overlayTranslations = {}
+local overlayTranslate = love.graphics.translate
+love.graphics.translate = function(x, y)
+  overlayTranslations[#overlayTranslations + 1] = { x = x, y = y }
+end
+local overlayDrawOK, overlayDrawErr = pcall(bagQuantity.draw, bagQuantity)
+love.graphics.translate = overlayTranslate
+love.graphics.getPixelDimensions = bagOverlayPixels
+T.check(overlayDrawOK,
+  "the selection-anchored portrait quantity box draws headlessly: "
+    .. tostring(overlayDrawErr))
+T.eq(bagQuantity.__modernBagAnchorKind, "selection",
+  "the quantity selector identifies itself as a selected-row pop-out")
+T.eq(bagQuantity.__modernBagAnchorX, 107,
+  "the portrait quantity selector stays inside the selected row's right edge")
+T.eq(bagQuantity.__modernBagAnchorY, 60,
+  "the portrait quantity selector follows the selected row vertically")
+T.eq(overlayTranslations[1] and overlayTranslations[1].x, -13,
+  "the native quantity box is translated to its row anchor")
+T.eq(overlayTranslations[1] and overlayTranslations[1].y, -12,
+  "the quantity box no longer floats in the centre of a tall Bag")
+stack:pop()
+bagQuantity.onDone(1)
+local tossChoice = stack:top()
+T.eq(screen.modernBagPrompt, "Toss POTION?",
+  "TOSS displays its confirmation question behind YES/NO")
+T.check(tossChoice.__modernBagResponsiveOverlay == true,
+  "the YES/NO box retains the Bag's responsive position")
+stack:pop()
+tossChoice.onChoose(false)
+T.eq(screen.modernBagPrompt, nil,
+  "cancelling TOSS clears the confirmation prompt")
+T.eq(game.save.inventory.POTION, 3,
+  "cancelling TOSS leaves the item stack unchanged")
+
+-- Long translated two-word names wrap in the detail card, and description
+-- source strings pass through the engine translation catalog.
+screen.items[2].label = "MAXIMUM POTION"
+local detailPixels = love.graphics.getPixelDimensions
+love.graphics.getPixelDimensions = function() return 1280, 720 end
+local detailText = {}
+local detailFontDraw = Font.draw
+Font.draw = function(text) detailText[#detailText + 1] = tostring(text) end
+local translatedDrawOK, translatedDrawErr = pcall(screen.draw, screen)
+Font.draw = detailFontDraw
+love.graphics.getPixelDimensions = detailPixels
+T.check(translatedDrawOK,
+  "translated two-line details draw headlessly: "
+    .. tostring(translatedDrawErr))
+local detailJoined = table.concat(detailText, "|")
+local sawMaximumLine, sawPotionLine = false, false
+for _, text in ipairs(detailText) do
+  if text == "MAXIMUM" then sawMaximumLine = true end
+  if text == "POTION" then sawPotionLine = true end
+end
+T.check(sawMaximumLine and sawPotionLine
+    and not detailJoined:find("MAXIMUM POTION.", 1, true),
+  "a long two-word item name wraps instead of ending in a dot")
+T.check(detailJoined:find("HEALS", 1, true),
+  "individual item descriptions use translated source strings")
+screen.items[2].label = "POTION"
 
 -- Inventory changes made by the native item controller are synchronized back
 -- into both quantities and pocket contents without changing save format.

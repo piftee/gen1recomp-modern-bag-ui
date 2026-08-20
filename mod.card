@@ -1,11 +1,13 @@
 return {
-  summary = "A responsive pocket-based Bag made from Gen 1 UI materials.",
+  summary = "A responsive pocket-based Bag with expanded item storage.",
   author = "ishhodaszi",
-  tags = { "ui", "quality-of-life", "cosmetic" },
+  tags = { "ui", "quality-of-life", "inventory" },
   differences = {
     changed = {
       "Bag presentation and left/right navigation",
       "Item list information hierarchy",
+      "Bag and PC item storage limits",
+      "PC withdraw, deposit and toss presentation",
     },
     added = {
       "All, Items, Medicine, Poké Balls, Battle, TMs/HMs and Key Items pockets",
@@ -13,10 +15,16 @@ return {
       "Responsive widescreen layout",
       "Portrait phone layout with a stacked detail card and expanded item list",
       "Per-pocket cursor memory and pocket-safe item reordering",
+      "Up to 255 unique Bag and PC items with x999 quantities",
+      "Bag-style pocket tabs, details and responsive layout in PC item lists",
+      "Centred responsive native item prompts and confirmation boxes",
+      "Two-line translated item names and localizable descriptions",
     },
     known = {
       "Uses the engine_internals permission to retain the complete built-in Bag controller",
       "Other mods that replace the BagMenu screen itself conflict by design",
+      "Other mods that replace the PlayerPC screen itself conflict by design",
+      "Original cartridge .sav export remains limited to 20/50 unique items and x99 stacks",
     },
   },
   credits = {

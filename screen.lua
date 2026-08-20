@@ -14,6 +14,7 @@ return function(mod)
   local Strings = require("src.core.Strings")
   local Theme = require("src.ui.Theme")
 
+  local SCREEN_W = 160
   local SCREEN_H = 144
   local HEADER_H = 16
   local TABS_H = 20
@@ -30,19 +31,19 @@ return function(mod)
 
   local POCKETS = {
     { key = "all", label = "ALL ITEMS", short = "ALL", palette = "BLUEMON",
-      blurb = "Everything you are carrying." },
+      blurb = Strings.source("Everything you are carrying.") },
     { key = "items", label = "ITEMS", short = "ITEMS", palette = "BROWNMON",
-      blurb = "Useful items for your journey." },
+      blurb = Strings.source("Useful items for your journey.") },
     { key = "medicine", label = "MEDICINE", short = "MED", palette = "GREENMON",
-      blurb = "Items that help your POKéMON." },
+      blurb = Strings.source("Items that help your POKéMON.") },
     { key = "balls", label = "POKé BALLS", short = "BALLS", palette = "REDMON",
-      blurb = "Devices for catching wild POKéMON." },
+      blurb = Strings.source("Devices for catching wild POKéMON.") },
     { key = "battle", label = "BATTLE", short = "BATTLE", palette = "YELLOWMON",
-      blurb = "Items that give an edge in battle." },
+      blurb = Strings.source("Items that give an edge in battle.") },
     { key = "machines", label = "TMs/HMs", short = "TMs", palette = "PURPLEMON",
-      blurb = "Machines that teach new moves." },
+      blurb = Strings.source("Machines that teach new moves.") },
     { key = "key", label = "KEY ITEMS", short = "KEY", palette = "CYANMON",
-      blurb = "Important items for your adventure." },
+      blurb = Strings.source("Important items for your adventure.") },
   }
 
   local BATTLE_ITEMS = {
@@ -64,46 +65,46 @@ return function(mod)
   }
 
   local DESCRIPTIONS = {
-    POTION = "Restores 20 HP to one POKéMON.",
-    SUPER_POTION = "Restores 50 HP to one POKéMON.",
-    HYPER_POTION = "Restores 200 HP to one POKéMON.",
-    MAX_POTION = "Fully restores one POKéMON's HP.",
-    FULL_RESTORE = "Fully restores HP and cures status.",
-    FRESH_WATER = "A refreshing drink that restores 50 HP.",
-    SODA_POP = "A fizzy drink that restores 60 HP.",
-    LEMONADE = "A sweet drink that restores 80 HP.",
-    ANTIDOTE = "Cures a poisoned POKéMON.",
-    BURN_HEAL = "Cures a burned POKéMON.",
-    ICE_HEAL = "Defrosts a frozen POKéMON.",
-    AWAKENING = "Wakes a sleeping POKéMON.",
-    PARLYZ_HEAL = "Cures a paralyzed POKéMON.",
-    FULL_HEAL = "Cures all status conditions.",
-    REVIVE = "Revives a fainted POKéMON with half HP.",
-    MAX_REVIVE = "Revives a fainted POKéMON with full HP.",
-    RARE_CANDY = "Raises one POKéMON by one level.",
-    PP_UP = "Raises the maximum PP of one move.",
-    ETHER = "Restores 10 PP to one move.",
-    MAX_ETHER = "Fully restores the PP of one move.",
-    ELIXER = "Restores 10 PP to every move.",
-    MAX_ELIXER = "Fully restores the PP of every move.",
-    ESCAPE_ROPE = "Returns you to the last POKéMON Center.",
-    REPEL = "Keeps weak wild POKéMON away briefly.",
-    SUPER_REPEL = "Keeps weak wild POKéMON away longer.",
-    MAX_REPEL = "Keeps weak wild POKéMON away the longest.",
-    FIRE_STONE = "A peculiar stone that evolves some POKéMON.",
-    WATER_STONE = "A peculiar stone that evolves some POKéMON.",
-    THUNDER_STONE = "A peculiar stone that evolves some POKéMON.",
-    LEAF_STONE = "A peculiar stone that evolves some POKéMON.",
-    MOON_STONE = "A peculiar stone that evolves some POKéMON.",
-    NUGGET = "A solid gold nugget that sells for a high price.",
-    POKE_DOLL = "A doll that can help you escape a wild battle.",
-    BICYCLE = "A folding bicycle that is faster than walking.",
-    TOWN_MAP = "A convenient map of the Kanto region.",
-    ITEMFINDER = "Checks the area for hidden items.",
-    POKE_FLUTE = "A flute with a melody that wakes sleepers.",
-    OLD_ROD = "Use it by water to fish for POKéMON.",
-    GOOD_ROD = "A good rod for fishing up POKéMON.",
-    SUPER_ROD = "The best rod for fishing up POKéMON.",
+    POTION = Strings.source("Restores 20 HP to one POKéMON."),
+    SUPER_POTION = Strings.source("Restores 50 HP to one POKéMON."),
+    HYPER_POTION = Strings.source("Restores 200 HP to one POKéMON."),
+    MAX_POTION = Strings.source("Fully restores one POKéMON's HP."),
+    FULL_RESTORE = Strings.source("Fully restores HP and cures status."),
+    FRESH_WATER = Strings.source("A refreshing drink that restores 50 HP."),
+    SODA_POP = Strings.source("A fizzy drink that restores 60 HP."),
+    LEMONADE = Strings.source("A sweet drink that restores 80 HP."),
+    ANTIDOTE = Strings.source("Cures a poisoned POKéMON."),
+    BURN_HEAL = Strings.source("Cures a burned POKéMON."),
+    ICE_HEAL = Strings.source("Defrosts a frozen POKéMON."),
+    AWAKENING = Strings.source("Wakes a sleeping POKéMON."),
+    PARLYZ_HEAL = Strings.source("Cures a paralyzed POKéMON."),
+    FULL_HEAL = Strings.source("Cures all status conditions."),
+    REVIVE = Strings.source("Revives a fainted POKéMON with half HP."),
+    MAX_REVIVE = Strings.source("Revives a fainted POKéMON with full HP."),
+    RARE_CANDY = Strings.source("Raises one POKéMON by one level."),
+    PP_UP = Strings.source("Raises the maximum PP of one move."),
+    ETHER = Strings.source("Restores 10 PP to one move."),
+    MAX_ETHER = Strings.source("Fully restores the PP of one move."),
+    ELIXER = Strings.source("Restores 10 PP to every move."),
+    MAX_ELIXER = Strings.source("Fully restores the PP of every move."),
+    ESCAPE_ROPE = Strings.source("Returns you to the last POKéMON Center."),
+    REPEL = Strings.source("Keeps weak wild POKéMON away briefly."),
+    SUPER_REPEL = Strings.source("Keeps weak wild POKéMON away longer."),
+    MAX_REPEL = Strings.source("Keeps weak wild POKéMON away the longest."),
+    FIRE_STONE = Strings.source("A peculiar stone that evolves some POKéMON."),
+    WATER_STONE = Strings.source("A peculiar stone that evolves some POKéMON."),
+    THUNDER_STONE = Strings.source("A peculiar stone that evolves some POKéMON."),
+    LEAF_STONE = Strings.source("A peculiar stone that evolves some POKéMON."),
+    MOON_STONE = Strings.source("A peculiar stone that evolves some POKéMON."),
+    NUGGET = Strings.source("A solid gold nugget that sells for a high price."),
+    POKE_DOLL = Strings.source("A doll that can help you escape a wild battle."),
+    BICYCLE = Strings.source("A folding bicycle that is faster than walking."),
+    TOWN_MAP = Strings.source("A convenient map of the Kanto region."),
+    ITEMFINDER = Strings.source("Checks the area for hidden items."),
+    POKE_FLUTE = Strings.source("A flute with a melody that wakes sleepers."),
+    OLD_ROD = Strings.source("Use it by water to fish for POKéMON."),
+    GOOD_ROD = Strings.source("A good rod for fishing up POKéMON."),
+    SUPER_ROD = Strings.source("The best rod for fishing up POKéMON."),
   }
 
   local inkShader -- false when shaders are unavailable
@@ -252,7 +253,8 @@ return function(mod)
     local headerH = stacked and 24 or HEADER_H
     local tabsY = headerH
     local contentY = tabsY + TABS_H
-    local footerH = stacked and 20 or FOOTER_H
+    local expandedFooter = menu and (menu.modernPCUI or menu.modernBagPrompt)
+    local footerH = stacked and 20 or (expandedFooter and 16 or FOOTER_H)
     local footerY = height - footerH
     local listY = contentY + 3
 
@@ -276,12 +278,15 @@ return function(mod)
 
     local listColumnW = wide and math.floor(width * 0.54) or width - 8
     listColumnW = math.max(96, listColumnW)
+    local rows = expandedFooter
+      and math.max(4, math.floor((footerY - listY - 8) / ROW_H))
+      or ROWS
     return {
       width = width, height = height,
       wide = wide, stacked = false, showDetails = wide,
       headerH = headerH, tabsY = tabsY, tabsH = TABS_H,
       contentY = contentY, footerY = footerY, footerH = footerH,
-      rows = ROWS,
+      rows = rows,
       listX = 4,
       listY = listY,
       listW = listColumnW - 4,
@@ -323,15 +328,43 @@ return function(mod)
     return POCKETS[menu.modernBagPocket or 1]
   end
 
+  local function listConfig(menu)
+    return menu.modernBagListConfig
+  end
+
+  local function itemStore(menu)
+    local config = listConfig(menu)
+    if config and type(config.store) == "function" then
+      return config.store(menu) or {}
+    end
+    return menu.game.save.inventory
+  end
+
+  local function orderedIds(menu, store)
+    local config = listConfig(menu)
+    if config and type(config.order) == "function" then
+      return config.order(menu, store) or {}
+    end
+    return Bag.order(menu.game.save)
+  end
+
+  local function included(menu, id)
+    local config = listConfig(menu)
+    return not (config and type(config.filter) == "function")
+      or config.filter(menu, id)
+  end
+
   local function makeRows(menu, pocketKey)
     local rows = {}
-    for _, id in ipairs(Bag.order(menu.game.save)) do
-      if pocketKey == "all" or categoryFor(menu.game, id) == pocketKey then
+    local store = itemStore(menu)
+    for _, id in ipairs(orderedIds(menu, store)) do
+      if included(menu, id)
+          and (pocketKey == "all" or categoryFor(menu.game, id) == pocketKey) then
         local def = menu.game.data.items[id]
         rows[#rows + 1] = {
           value = id,
           label = def and def.name or id,
-          right = "x" .. tostring(menu.game.save.inventory[id] or 0),
+          right = "x" .. tostring(store[id] or 0),
         }
       end
     end
@@ -340,8 +373,11 @@ return function(mod)
 
   local function inventorySignature(menu)
     local parts = {}
-    for _, id in ipairs(Bag.order(menu.game.save)) do
-      parts[#parts + 1] = id .. ":" .. tostring(menu.game.save.inventory[id])
+    local store = itemStore(menu)
+    for _, id in ipairs(orderedIds(menu, store)) do
+      if included(menu, id) then
+        parts[#parts + 1] = id .. ":" .. tostring(store[id])
+      end
     end
     return table.concat(parts, "|")
   end
@@ -372,7 +408,7 @@ return function(mod)
     end
     clampList(menu)
     menu.modernBagInventorySignature = inventorySignature(menu)
-    if menu.modernBagSwapId and not menu.game.save.inventory[menu.modernBagSwapId] then
+    if menu.modernBagSwapId and not itemStore(menu)[menu.modernBagSwapId] then
       menu.modernBagSwapId = nil
     end
   end
@@ -433,10 +469,13 @@ return function(mod)
   local function pocketCounts(menu)
     local counts = { all = 0, items = 0, medicine = 0, balls = 0,
       battle = 0, machines = 0, key = 0 }
-    for _, id in ipairs(Bag.order(menu.game.save)) do
-      counts.all = counts.all + 1
-      local category = categoryFor(menu.game, id)
-      counts[category] = (counts[category] or 0) + 1
+    local store = itemStore(menu)
+    for _, id in ipairs(orderedIds(menu, store)) do
+      if included(menu, id) then
+        counts.all = counts.all + 1
+        local category = categoryFor(menu.game, id)
+        counts[category] = (counts[category] or 0) + 1
+      end
     end
     return counts
   end
@@ -523,19 +562,35 @@ return function(mod)
     end
   end
 
-  local function drawHeader(menu, layout, counts)
+  local function drawHeader(menu, layout)
     local pocket = pocketFor(menu)
+    local config = listConfig(menu)
     gray(DARK)
     love.graphics.rectangle("fill", 0, 0, layout.width, layout.headerH)
-    drawText(Strings("BAG"), 5, layout.stacked and 2 or 4, 32, WHITE)
+    drawText(Strings(config and config.header or "BAG"), 5,
+      layout.stacked and 2 or 4, 32, WHITE)
 
-    local capacity = ("%d/%d"):format(Bag.slots(menu.game.save),
-      Bag.capacity(menu.game.data))
+    local capacity
+    if config and type(config.capacity) == "function" then
+      capacity = tostring(config.capacity(menu) or "")
+    else
+      capacity = ("%d/%d"):format(Bag.slots(menu.game.save),
+        Bag.capacity(menu.game.data))
+    end
     drawTextRight(capacity, layout.width - 5, layout.stacked and 2 or 4,
       48, WHITE)
 
-    local label = (layout.wide or layout.stacked) and pocket.label or pocket.short
-    local center = Strings(label) .. " " .. tostring(counts[pocket.key] or 0)
+    local label
+    if config then
+      label = (layout.wide or layout.stacked)
+        and (config.label or config.short) or config.short
+    else
+      label = (layout.wide or layout.stacked) and pocket.label or pocket.short
+    end
+    -- The right side already reports the total slot count. Repeating the
+    -- active pocket count after the label made ALL ITEMS read like
+    -- "ALL ITEMS 4646/255" once the Bag held 46 unique items.
+    local center = Strings(label)
     local centerWidth = layout.stacked and (layout.width - 10)
       or math.max(40, layout.width - 96)
     center = fitText(center, centerWidth)
@@ -659,7 +714,7 @@ return function(mod)
   local function itemDescription(menu, id)
     local def = menu.game.data.items[id] or {}
     if type(def.description) == "string" and def.description ~= "" then
-      return def.description
+      return Strings(def.description)
     end
     if DESCRIPTIONS[id] then return Strings(DESCRIPTIONS[id]) end
     if def.machine then
@@ -699,8 +754,11 @@ return function(mod)
       local caption = item and categoryFor(menu.game, item.value) or pocket.key
       drawText(caption:upper(), layout.detailX + 6, layout.detailY + 5,
         math.floor(layout.detailW * 0.58), DARK)
-      local money = ("¥%d"):format(menu.game.save.money or 0)
-      drawTextRight(money, layout.detailX + layout.detailW - 6,
+      local config = listConfig(menu)
+      local status = config and type(config.detailStatus) == "function"
+        and config.detailStatus(menu)
+        or ("¥%d"):format(menu.game.save.money or 0)
+      drawTextRight(status, layout.detailX + layout.detailW - 6,
         layout.detailY + 5, math.floor(layout.detailW * 0.42), DARK)
 
       local category = item and categoryFor(menu.game, item.value) or pocket.key
@@ -710,14 +768,19 @@ return function(mod)
       local textX = layout.detailX + iconSize + 14
       local textW = layout.detailX + layout.detailW - 6 - textX
       local name = item and item.label or pocket.label
-      drawText(name, textX, layout.detailY + 24, textW, BLACK)
-      local description = item and itemDescription(menu, item.value) or pocket.blurb
+      local nameLines = wrappedLines(name, textW, 2)
+      for index, line in ipairs(nameLines) do
+        drawText(line, textX, layout.detailY + 24 + (index - 1) * 9,
+          textW, BLACK)
+      end
+      local description = item and itemDescription(menu, item.value)
+        or Strings(pocket.blurb)
       local descriptionY = layout.detailY + 20 + iconSize + 4
       local descriptionW = layout.detailW - 12
       local maxLines = math.max(2, math.floor(
         (layout.detailY + layout.detailH - 4 - descriptionY) / 9))
       for index, line in ipairs(wrappedLines(
-          Strings(description), descriptionW, maxLines)) do
+          description, descriptionW, maxLines)) do
         drawText(line, layout.detailX + 6,
           descriptionY + (index - 1) * 9, descriptionW, DARK)
       end
@@ -746,14 +809,29 @@ return function(mod)
       drawPocketSymbol(category,
         layout.detailX + math.floor((layout.detailW - iconSize) / 2),
         layout.detailY + 17, iconSize)
-      local name = fitText(item.label, layout.detailW - 12)
-      drawText(name, layout.detailX + (layout.detailW - Font.width(name)) / 2,
-        layout.detailY + 45, layout.detailW - 12, WHITE)
+      local nameLines = wrappedLines(item.label, layout.detailW - 12, 2)
+      for index, line in ipairs(nameLines) do
+        drawText(line,
+          layout.detailX + (layout.detailW - Font.width(line)) / 2,
+          layout.detailY + 45 + (index - 1) * 9,
+          layout.detailW - 12, WHITE)
+      end
+      local descriptionY = layout.detailY + 58
+        + math.max(0, #nameLines - 1) * 9
+      local config = listConfig(menu)
+      local descriptionLines
+      if config then
+        descriptionLines = math.max(1, math.floor(
+          (layout.detailY + layout.detailH - 2 - descriptionY - 8) / 9) + 1)
+      else
+        descriptionLines = math.max(1, math.floor(
+          (layout.detailY + layout.detailH - 14 - descriptionY) / 9))
+      end
       local lines = wrappedLines(itemDescription(menu, item.value),
-        layout.detailW - 12, 3)
+        layout.detailW - 12, descriptionLines)
       for index, line in ipairs(lines) do
         drawText(line, layout.detailX + 6,
-          layout.detailY + 58 + (index - 1) * 9,
+          descriptionY + (index - 1) * 9,
           layout.detailW - 12, LIGHT)
       end
     else
@@ -768,15 +846,41 @@ return function(mod)
       end
     end
 
-    local money = ("¥%d"):format(menu.game.save.money or 0)
-    drawTextRight(money, layout.detailX + layout.detailW - 6,
-      layout.detailY + layout.detailH - 11, layout.detailW - 12, WHITE)
+    local config = listConfig(menu)
+    if not config then
+      local status = ("¥%d"):format(menu.game.save.money or 0)
+      drawTextRight(status, layout.detailX + layout.detailW - 6,
+        layout.detailY + layout.detailH - 11, layout.detailW - 12, WHITE)
+    end
   end
 
   local function drawFooter(menu, layout)
     gray(DARK)
     love.graphics.rectangle("fill", 0, layout.footerY,
       layout.width, layout.footerH)
+    local config = listConfig(menu)
+    if config or menu.modernBagPrompt then
+      local lines
+      local status = config and menu.footer or menu.modernBagPrompt
+      if status then
+        lines = wrappedLines(Strings(status):gsub("\n", " "),
+          layout.width - 8, 2)
+      elseif config and layout.wide then
+        lines = { Strings("L/R POCKET  A SELECT  B BACK") }
+      else
+        lines = { Strings("L/R POCKET"), Strings("A SELECT  B BACK") }
+      end
+      if #lines == 0 then lines = { "" } end
+      local step = 8
+      local y = layout.footerY
+        + math.max(0, math.floor((layout.footerH - #lines * step) / 2))
+      for index, line in ipairs(lines) do
+        line = fitText(line, layout.width - 8)
+        drawText(line, (layout.width - Font.width(line)) / 2,
+          y + (index - 1) * step, layout.width - 8, WHITE)
+      end
+      return
+    end
     if layout.stacked then
       local line1, line2
       if menu.modernBagSwapId then
@@ -815,7 +919,7 @@ return function(mod)
     clampList(menu)
     local counts = pocketCounts(menu)
     drawBackdrop(layout)
-    drawHeader(menu, layout, counts)
+    drawHeader(menu, layout)
     drawTabs(menu, layout, counts)
     drawList(menu, layout)
     drawDetails(menu, layout)
@@ -876,8 +980,192 @@ return function(mod)
     return menu.modernBagBaseUpdate(menu, dt)
   end
 
+  -- Transparent native prompts and classic sub-screens normally make the
+  -- renderer fall back to 160x144 as soon as they reach the top of the
+  -- stack. Keep the responsive Bag/PC surface instead. Most classic overlays
+  -- remain centred in it; quantity selectors attach to the selected row so
+  -- they read as a pop-out from the item that opened them. This covers
+  -- USE/TOSS, quantity and YES/NO boxes, text, party targeting and move
+  -- selection without replacing any of their controllers.
+  local function installOverlayBridge(game)
+    local stack = game and game.stack
+    if not stack or stack.__modernBagOverlayBridge then return end
+    local originalPush = stack.push
+    if type(originalPush) ~= "function" then return end
+    stack.__modernBagOverlayBridge = true
+    stack.push = function(self, state, ...)
+      local owner
+      for index = #(self.states or {}), 1, -1 do
+        local candidate = self.states[index]
+        if candidate and candidate.modernBagUI then
+          owner = candidate
+          break
+        end
+      end
+
+      if owner and state and not state.modernBagUI and not state.uiSize
+          and not state.__modernBagResponsiveOverlay then
+        state.__modernBagResponsiveOverlay = true
+        state.uiSize = function() return owner:uiSize() end
+        state.holdsUIAnchors = true
+        state.isWideBattleLayout = function() return true end
+
+        local function overlayOffset(active)
+          local width, height = active:uiSize()
+          local offsetX = math.max(0, math.floor((width - SCREEN_W) / 2))
+          local offsetY = math.max(0, math.floor((height - SCREEN_H) / 2))
+          local QuantityBox = require("src.ui.QuantityBox")
+          if getmetatable(active) ~= QuantityBox
+              or type(owner.modernBagLayoutInfo) ~= "function" then
+            return offsetX, offsetY
+          end
+
+          local layout = owner:modernBagLayoutInfo()
+          local priced = active.unitPrice ~= nil
+          local threeDigits = not priced and active.max >= 100
+          local sourceTX = priced and 7 or (threeDigits and 14 or 15)
+          local boxTiles = priced and 13 or (threeDigits and 6 or 5)
+          local boxW, boxH = boxTiles * 8, 3 * 8
+          local row = math.max(0,
+            (owner.index or 1) - (owner.scroll or 0) - 1)
+          local selectedTop = layout.listY + 3 + row * ROW_H
+          local targetY = selectedTop - math.floor((boxH - 13) / 2)
+          local targetX
+          if layout.showDetails and not layout.stacked then
+            -- Straddle the seam: a small overlap joins the box to the row,
+            -- while most of it opens into the details column.
+            targetX = layout.listX + layout.listW - 6
+          else
+            -- A portrait list has no free column, so replace the selected
+            -- row's quantity at its right edge instead of leaving the screen.
+            targetX = layout.listX + layout.listW - boxW - 5
+          end
+          targetX = math.max(0, math.min(width - boxW, targetX))
+          targetY = math.max(layout.contentY,
+            math.min(layout.footerY - boxH, targetY))
+          active.__modernBagAnchorKind = "selection"
+          active.__modernBagAnchorX = targetX
+          active.__modernBagAnchorY = targetY
+          return targetX - sourceTX * 8, targetY - 9 * 8
+        end
+
+        local baseDraw = state.draw
+        if type(baseDraw) == "function" then
+          state.draw = function(active)
+            local width, height = active:uiSize()
+            local offsetX, offsetY = overlayOffset(active)
+            love.graphics.push("all")
+            if active.isOpaque and (offsetX > 0 or offsetY > 0) then
+              gray(BLACK)
+              love.graphics.rectangle("fill", 0, 0, width, height)
+            end
+            love.graphics.translate(offsetX, offsetY)
+            baseDraw(active)
+            love.graphics.pop()
+          end
+        end
+
+        local basePalettes = state.sgbPalettes
+        if type(basePalettes) == "function" then
+          state.sgbPalettes = function(active, activeGame)
+            local zones = basePalettes(active, activeGame)
+            if not zones then return nil end
+            local offsetX, offsetY = overlayOffset(active)
+            local shifted = {}
+            for index, zone in ipairs(zones) do
+              local copy = {}
+              for key, value in pairs(zone) do copy[key] = value end
+              copy.x = (copy.x or 0) + offsetX
+              copy.y = (copy.y or 0) + offsetY
+              shifted[index] = copy
+            end
+            return shifted
+          end
+        end
+      end
+      return originalPush(self, state, ...)
+    end
+  end
+
+  local function installTossPrompts(menu, item)
+    local actionMenu = menu.game.stack:top()
+    local tossRow = actionMenu and actionMenu.items and actionMenu.items[2]
+    if not tossRow or type(tossRow.onSelect) ~= "function"
+        or actionMenu.__modernBagTossPrompts then
+      return
+    end
+    actionMenu.__modernBagTossPrompts = true
+    local chooseToss = tossRow.onSelect
+    tossRow.onSelect = function()
+      local result = chooseToss()
+      local quantity = menu.game.stack:top()
+      local QuantityBox = require("src.ui.QuantityBox")
+      if getmetatable(quantity) ~= QuantityBox
+          or type(quantity.onDone) ~= "function" then
+        return result
+      end
+
+      menu.modernBagPrompt = Strings("How many?")
+      local finishQuantity = quantity.onDone
+      quantity.onDone = function(qty)
+        if qty then
+          menu.modernBagPrompt = Strings("Toss %s?", item.label)
+        else
+          menu.modernBagPrompt = nil
+        end
+        local finished = finishQuantity(qty)
+        if qty then
+          local choice = menu.game.stack:top()
+          local ChoiceBox = require("src.ui.ChoiceBox")
+          if getmetatable(choice) == ChoiceBox
+              and type(choice.onChoose) == "function" then
+            local confirm = choice.onChoose
+            choice.onChoose = function(yes)
+              menu.modernBagPrompt = nil
+              return confirm(yes)
+            end
+          else
+            menu.modernBagPrompt = nil
+          end
+        end
+        return finished
+      end
+      return result
+    end
+  end
+
+  local function decorateList(menu, config)
+    installOverlayBridge(menu.game)
+    menu.modernBagListConfig = config or {}
+    menu.modernPCUI = true
+    menu.modernBagBaseUpdate = menu.update
+    menu.modernBagPocket = 1
+    menu.modernBagPocketState = {}
+    menu.modernBagSwapId = nil
+    menu.rows = layoutFor(menu).rows
+    menu.draw = draw
+    menu.update = update
+    menu.sgbPalettes = sgbPalettes
+    menu.uiSize = uiSize
+    menu.isWideBattleLayout = function() return true end
+    menu.holdsUIAnchors = true
+    menu.modernBagUI = true
+    menu.modernBagLayout = "pc-pockets"
+    menu.modernBagPockets = POCKETS
+    menu.modernBagCategoryFor = function(_, id)
+      return categoryFor(menu.game, id)
+    end
+    menu.modernBagLayoutInfo = function() return layoutFor(menu) end
+    menu.modernBagSwitchPocket = switchPocket
+    menu.modernBagRefresh = rebuildPocket
+    rebuildPocket(menu)
+    return menu
+  end
+
   return {
+    decorateList = decorateList,
     new = function(game, opts)
+      installOverlayBridge(game)
       local menu = BagMenu.new(game, opts)
       local baseChoose = menu.onChoose
       menu.modernBagBaseUpdate = menu.update
@@ -894,7 +1182,9 @@ return function(mod)
           finishSwap(list, item and item.value)
           return
         end
-        return baseChoose(item, list)
+        local result = baseChoose(item, list)
+        installTossPrompts(list, item)
+        return result
       end
 
       menu.draw = draw

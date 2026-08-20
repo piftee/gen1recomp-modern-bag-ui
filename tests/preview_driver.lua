@@ -70,13 +70,59 @@ return function(game)
   U.wait(8)
   U.shot(game, DIR .. "/modern_bag_key_items.png")
 
+  -- The player's item-storage PC reuses the same pocket shell while keeping
+  -- the native WITHDRAW/DEPOSIT/TOSS controllers underneath.
+  while game.stack:top() do game.stack:pop() end
+  game.save.pcItems = {
+    POTION = 12, ANTIDOTE = 4, POKE_BALL = 18,
+    ESCAPE_ROPE = 2, X_ATTACK = 3, TM_THUNDERBOLT = 1,
+  }
+  local pcRoot = Screens.push(game, "PlayerPC")
+  pcRoot.items[1].onSelect()
+  local pcList = game.stack:top()
+  U.wait(8)
+  U.log(pcList.modernPCUI and "PASS modern PC is active"
+    or "FAIL modern PC list was not decorated")
+  U.shot(game, DIR .. "/modern_pc_withdraw.png")
+
+  -- Regression preview: opening DEPOSIT's amount selector must not apply a
+  -- second responsive-layout offset to the PC surface underneath it.
+  game.stack:pop()
+  pcRoot.items[2].onSelect()
+  pcList = game.stack:top()
+  pcList.onChoose(pcList.items[pcList.index], pcList)
+  local pcQuantity = game.stack:top()
+  U.wait(8)
+  U.shot(game, DIR .. "/modern_pc_deposit_quantity.png")
+  game.stack:pop()
+  pcQuantity.onDone(nil)
+
   -- Portrait phones use a taller native-pixel surface instead of centring a
   -- cramped 160x144 desktop composition between large black bars.
   love.window.setMode(480, 960, {
     resizable = true, minwidth = 160, minheight = 144,
   })
+  pcList.modernBagPocket = 1
+  pcList:modernBagRefresh(pcList.items[pcList.index]
+    and pcList.items[pcList.index].value)
+  U.wait(12)
+  U.shot(game, DIR .. "/modern_pc_mobile_portrait.png")
+
+  while game.stack:top() do game.stack:pop() end
+  menu = Screens.push(game, "BagMenu", {})
   menu.modernBagPocket = 1
   menu:modernBagRefresh(menu.items[menu.index] and menu.items[menu.index].value)
   U.wait(12)
   U.shot(game, DIR .. "/modern_bag_mobile_portrait.png")
+
+  menu.onChoose(menu.items[menu.index], menu)
+  local action = game.stack:pop()
+  action.items[2].onSelect()
+  local quantity = game.stack:top()
+  U.wait(8)
+  U.shot(game, DIR .. "/modern_bag_mobile_toss_quantity.png")
+  game.stack:pop()
+  quantity.onDone(1)
+  U.wait(8)
+  U.shot(game, DIR .. "/modern_bag_mobile_toss_confirm.png")
 end
