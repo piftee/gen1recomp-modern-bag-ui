@@ -66,7 +66,7 @@ return function(game)
   game.stack:pop()
 
   -- Key Items gives the palette and procedural artwork a second visual pass.
-  for _ = 1, 4 do menu:modernBagSwitchPocket(1) end
+  for _ = 1, 3 do menu:modernBagSwitchPocket(1) end
   U.wait(8)
   U.shot(game, DIR .. "/modern_bag_key_items.png")
 
@@ -125,4 +125,67 @@ return function(game)
   quantity.onDone(1)
   U.wait(8)
   U.shot(game, DIR .. "/modern_bag_mobile_toss_confirm.png")
+
+  -- The alternate reference-inspired skin is selected from the normal
+  -- Options menu and immediately applies to both responsive Bag layouts.
+  love.window.setMode(1280, 720, {
+    resizable = true, minwidth = 640, minheight = 576,
+  })
+  while game.stack:top() do game.stack:pop() end
+  game.mods.modOptions = game.mods.modOptions or {}
+  game.mods.modOptions.modern_bag_ui =
+    game.mods.modOptions.modern_bag_ui or {}
+  game.mods.modOptions.modern_bag_ui.skin = "modern"
+  game.save.options.modOptions = game.save.options.modOptions or {}
+  game.save.options.modOptions.modern_bag_ui =
+    game.save.options.modOptions.modern_bag_ui or {}
+  game.save.options.modOptions.modern_bag_ui.skin = "modern"
+  local options = Screens.push(game, "OptionsMenu")
+  local skinRow
+  for index, row in ipairs(options.rows) do
+    if row.id == "modern_bag_ui_skin" then
+      skinRow = row
+      options.index = index
+      options.scroll = math.max(0, index - 4)
+      break
+    end
+  end
+  if skinRow then skinRow.step(game, 1) end
+  U.wait(8)
+  U.shot(game, DIR .. "/bag_skin_option.png")
+  game.stack:pop()
+
+  for _, id in ipairs({ "MOON_STONE", "NUGGET", "MAX_REPEL" }) do
+    if game.data.items[id] and not game.save.inventory[id] then
+      Bag.add(game.save, id, 1, game.data)
+    end
+  end
+  menu = Screens.push(game, "BagMenu", {})
+  menu:modernBagSwitchPocket(1)
+  U.wait(12)
+  U.log(menu:modernBagLayoutInfo().skin == "classic_pocket"
+    and "PASS Pocket skin is active" or "FAIL Pocket skin did not activate")
+  U.shot(game, DIR .. "/classic_pocket_bag_wide.png")
+
+  -- Match the near-square reference aspect for the fidelity comparison.
+  love.window.setMode(832, 720, {
+    resizable = true, minwidth = 640, minheight = 576,
+  })
+  U.wait(12)
+  U.shot(game, DIR .. "/classic_pocket_bag_reference.png")
+
+  -- Every named pocket selects a different compartment in the source-derived
+  -- five-pocket backpack. Keep one same-viewport capture per state for QA.
+  for _, name in ipairs({ "medicine", "balls", "machines", "key" }) do
+    menu:modernBagSwitchPocket(1)
+    U.wait(8)
+    U.shot(game, DIR .. "/classic_pocket_bag_" .. name .. ".png")
+  end
+  menu:modernBagSwitchPocket(-4)
+
+  love.window.setMode(480, 960, {
+    resizable = true, minwidth = 160, minheight = 144,
+  })
+  U.wait(12)
+  U.shot(game, DIR .. "/classic_pocket_bag_mobile.png")
 end

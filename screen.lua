@@ -8,6 +8,7 @@
 return function(mod)
   local BagMenu = require("src.ui.BagMenu")
   local Bag = require("src.inventory.Bag")
+  local Assets = require("src.render.Assets")
   local Font = require("src.render.Font")
   local ItemEffects = require("src.inventory.ItemEffects")
   local PaletteFX = require("src.render.PaletteFX")
@@ -29,6 +30,10 @@ return function(mod)
   local DARK = 85 / 255
   local BLACK = 0
 
+  local function classicSkin()
+    return mod.options:get("skin") == "classic_pocket"
+  end
+
   local POCKETS = {
     { key = "all", label = "ALL ITEMS", short = "ALL", palette = "BLUEMON",
       blurb = Strings.source("Everything you are carrying.") },
@@ -38,19 +43,35 @@ return function(mod)
       blurb = Strings.source("Items that help your POKéMON.") },
     { key = "balls", label = "POKé BALLS", short = "BALLS", palette = "REDMON",
       blurb = Strings.source("Devices for catching wild POKéMON.") },
-    { key = "battle", label = "BATTLE", short = "BATTLE", palette = "YELLOWMON",
-      blurb = Strings.source("Items that give an edge in battle.") },
     { key = "machines", label = "TMs/HMs", short = "TMs", palette = "PURPLEMON",
       blurb = Strings.source("Machines that teach new moves.") },
     { key = "key", label = "KEY ITEMS", short = "KEY", palette = "CYANMON",
       blurb = Strings.source("Important items for your adventure.") },
   }
 
-  local BATTLE_ITEMS = {
-    X_ACCURACY = true, X_ATTACK = true, X_DEFEND = true,
-    X_SPEED = true, X_SPECIAL = true, DIRE_HIT = true,
-    GUARD_SPEC = true, POKE_DOLL = true,
+  -- The reference skin uses compact, title-case labels in its rail rather
+  -- than the all-caps names used by the modern header and tabs.
+  local CLASSIC_POCKET_LABELS = {
+    all = "All",
+    items = "Items",
+    medicine = "Meds",
+    balls = "Balls",
+    machines = "TMs",
+    key = "Key",
   }
+
+  -- The extracted reference backpack has five real compartments. All is a
+  -- combined view; the remaining five categories each own one sprite region.
+  -- Battle enhancers stay in Items so the navigation and artwork are 1:1.
+  local CLASSIC_BAG_REGIONS = {
+    all = "all",
+    items = "items",
+    medicine = "medicine",
+    balls = "balls",
+    machines = "machines",
+    key = "key",
+  }
+  local CLASSIC_BAG_ASSET = mod.path .. "/assets/classic_bag_pockets.png"
 
   local MEDICINE = {
     POTION = true, SUPER_POTION = true, HYPER_POTION = true,
@@ -108,6 +129,8 @@ return function(mod)
   }
 
   local inkShader -- false when shaders are unavailable
+  local classicLabelFont -- false when direct TTF labels are unavailable
+  local classicBagSprites -- false when the source sprite cannot be loaded
 
   local function gray(value)
     love.graphics.setColor(value, value, value, 1)
@@ -160,6 +183,56 @@ return function(mod)
     local width = Font.width(text)
     drawText(text, right - width, y, maxWidth, shade)
     return width
+  end
+
+  local function classicRailLabel(text, x, y, width, height)
+    text = tostring(text or "")
+    if classicLabelFont == nil then
+      if not love.graphics.newFont then
+        classicLabelFont = false
+      else
+        local ok, face = pcall(love.graphics.newFont,
+          Font.PLAINPIXEL, 10, "mono")
+        if ok and face then
+          if face.setFilter then
+            pcall(face.setFilter, face, "nearest", "nearest")
+          end
+          classicLabelFont = face
+        else
+          classicLabelFont = false
+        end
+      end
+    end
+
+    local face = classicLabelFont or nil
+    if not face or not love.graphics.print then
+      local fallback = fitText(text, width)
+      drawText(fallback, x + math.floor((width - Font.width(fallback)) / 2),
+        y + math.floor((height - 8) / 2), width, WHITE)
+      return fallback
+    end
+
+    local original = text
+    local spans = Font.split(original)
+    local count = #spans
+    while count > 1 and face:getWidth(text) > width do
+      count = count - 1
+      text = original:sub(1, spans[count].to) .. "."
+    end
+    love.graphics.push("all")
+    local shader = shaderForInk()
+    if shader then
+      love.graphics.setShader(shader)
+      gray(WHITE)
+    else
+      gray(BLACK)
+    end
+    love.graphics.setFont(face)
+    love.graphics.print(text,
+      math.floor(x + (width - face:getWidth(text)) / 2),
+      math.floor(y + (height - face:getHeight()) / 2))
+    love.graphics.pop()
+    return text
   end
 
   local function drawCode(code, x, y, shade)
@@ -250,6 +323,31 @@ return function(mod)
     height = math.max(SCREEN_H, math.floor(height))
     local wide = width >= 196
     local stacked = not wide and height >= PORTRAIT_MIN_H
+
+    if classicSkin() then
+      local headerH = stacked and 18 or 14
+      local detailH = stacked and 84 or 40
+      local detailY = height - detailH
+      local railW = wide and math.max(56, math.floor(width * 0.25)) or 48
+      local listH = detailY - headerH
+      local rows = math.max(4, math.min(stacked and 10 or 6,
+        math.floor((listH - 5) / ROW_H)))
+      return {
+        skin = "classic_pocket",
+        width = width, height = height,
+        wide = wide, stacked = stacked, showDetails = true,
+        headerH = headerH, tabsY = headerH, tabsH = 0,
+        contentY = headerH, footerY = detailY, footerH = detailH,
+        rows = rows,
+        railX = 0, railY = headerH, railW = railW,
+        railH = detailY - headerH,
+        listX = railW, listY = headerH,
+        listW = width - railW, listH = listH,
+        detailX = 0, detailY = detailY,
+        detailW = width, detailH = detailH,
+      }
+    end
+
     local headerH = stacked and 24 or HEADER_H
     local tabsY = headerH
     local contentY = tabsY + TABS_H
@@ -318,7 +416,6 @@ return function(mod)
     if explicit then return explicit end
     if ItemEffects.isBall(id) or def.ball then return "balls" end
     if def.machine then return "machines" end
-    if BATTLE_ITEMS[id] then return "battle" end
     if def.keyItem then return "key" end
     if MEDICINE[id] then return "medicine" end
     return "items"
@@ -468,7 +565,7 @@ return function(mod)
 
   local function pocketCounts(menu)
     local counts = { all = 0, items = 0, medicine = 0, balls = 0,
-      battle = 0, machines = 0, key = 0 }
+      machines = 0, key = 0 }
     local store = itemStore(menu)
     for _, id in ipairs(orderedIds(menu, store)) do
       if included(menu, id) then
@@ -484,14 +581,21 @@ return function(mod)
     x, y, size = math.floor(x), math.floor(y), math.max(8, math.floor(size))
     local unit = math.max(1, math.floor(size / 8))
     if key == "all" then
-      gray(LIGHT)
-      love.graphics.rectangle("fill", x + unit, y + 3 * unit,
-        size - 2 * unit, size - 3 * unit)
-      gray(BLACK)
+      gray(DARK)
       love.graphics.rectangle("line", x + 2 * unit, y + unit,
         size - 4 * unit, 3 * unit)
-      love.graphics.rectangle("fill", x + 3 * unit, y + 4 * unit,
-        size - 6 * unit, unit)
+      love.graphics.rectangle("fill", x, y + 3 * unit,
+        2 * unit, size - 4 * unit)
+      love.graphics.rectangle("fill", x + size - 2 * unit, y + 3 * unit,
+        2 * unit, size - 4 * unit)
+      love.graphics.rectangle("fill", x + 2 * unit, y + 2 * unit,
+        size - 4 * unit, size - 2 * unit)
+      gray(LIGHT)
+      love.graphics.rectangle("fill", x + 3 * unit, y + 3 * unit,
+        size - 6 * unit, size - 4 * unit)
+      gray(DARK)
+      love.graphics.rectangle("line", x + 3 * unit, y + 5 * unit,
+        size - 6 * unit, 2 * unit)
     elseif key == "items" then
       gray(LIGHT)
       if love.graphics.polygon then
@@ -912,11 +1016,264 @@ return function(mod)
       layout.footerY, layout.width - 8, WHITE)
   end
 
+  -- A second skin inspired by the late-era Pocket Bag: a black title strip,
+  -- woven blue pocket rail, red active-pocket frame, clean white item sheet
+  -- and a full-width description card. It keeps the same controller and
+  -- responsive layout contract as the modern skin.
+  local function drawClassicBackdrop(layout)
+    gray(WHITE)
+    love.graphics.rectangle("fill", 0, 0, layout.width, layout.height)
+    gray(BLACK)
+    love.graphics.rectangle("fill", 0, 0, layout.width, layout.headerH)
+
+    gray(LIGHT)
+    love.graphics.rectangle("fill", layout.railX, layout.railY,
+      layout.railW, layout.railH)
+    for y = layout.railY, layout.railY + layout.railH - 1, 4 do
+      local phase = math.floor((y - layout.railY) / 4) % 2
+      for x = layout.railX + phase * 2,
+          layout.railX + layout.railW - 1, 4 do
+        gray(DARK)
+        love.graphics.rectangle("fill", x, y, 2, 2)
+        gray(WHITE)
+        love.graphics.rectangle("fill", x + 2, y + 2, 2, 2)
+      end
+    end
+  end
+
+  local function drawClassicHeader(menu, layout)
+    local pocket = pocketFor(menu)
+    local config = listConfig(menu)
+    local left = "POCKET"
+    drawText(fitText(Strings(left), layout.railW), 0,
+      math.max(2, math.floor((layout.headerH - 8) / 2)),
+      layout.railW, WHITE)
+
+    local title = Strings(config and (config.label or config.short)
+      or pocket.label)
+    local capacity
+    if config and type(config.capacity) == "function" then
+      capacity = tostring(config.capacity(menu) or "")
+    else
+      capacity = ("%d/%d"):format(Bag.slots(menu.game.save),
+        Bag.capacity(menu.game.data))
+    end
+    local capacityW = math.min(48, Font.width(capacity) + 4)
+    local titleW = math.max(24, layout.listW - capacityW - 8)
+    title = fitText(title, titleW)
+    drawText(title,
+      layout.listX + math.max(3, math.floor((titleW - Font.width(title)) / 2)),
+      math.max(2, math.floor((layout.headerH - 8) / 2)), titleW, LIGHT)
+    drawTextRight(capacity, layout.width - 3,
+      math.max(2, math.floor((layout.headerH - 8) / 2)), capacityW, WHITE)
+  end
+
+  local function classicRailBoxes(layout)
+    local margin = layout.wide and 5 or 3
+    local bagH = layout.wide and 36 or 30
+    local bagY = layout.railY + 4
+    local pocketH = layout.wide and 28 or 25
+    local pocketY = math.min(layout.railY + layout.railH - pocketH - 5,
+      bagY + bagH + 8)
+    return margin, bagY, bagH, pocketY, pocketH
+  end
+
+  local function classicBagRegionAt(x, y)
+    -- The reference screenshot is in Items and visibly selects the left-side
+    -- compartment. Continue from there through the main and two front pockets
+    -- before ending at the right-side Key Items compartment.
+    if x >= 4 and x <= 5 and y >= 8 and y <= 18 then return "items" end
+    if x >= 12 and x <= 21 and y >= 2 and y <= 10 then return "medicine" end
+    if x >= 12 and x <= 21 and y >= 12 and y <= 13 then return "balls" end
+    if x >= 12 and x <= 21 and y >= 15 and y <= 17 then return "machines" end
+    if x >= 27 and x <= 28 and y >= 9 and y <= 18 then return "key" end
+  end
+
+  local function loadClassicBagSprites()
+    if classicBagSprites ~= nil then return classicBagSprites or nil end
+    if not (love.image and love.image.newImageData
+        and love.graphics and love.graphics.newImage) then
+      classicBagSprites = false
+      return nil
+    end
+
+    local sprites = {}
+    for _, pocket in ipairs(POCKETS) do
+      local okData, data = pcall(Assets.imageData, CLASSIC_BAG_ASSET)
+      if not okData or not data or not data.mapPixel then
+        classicBagSprites = false
+        return nil
+      end
+      data:mapPixel(function(x, y, r, g, b, a)
+        local region = classicBagRegionAt(x, y)
+        local active = region and pocket.key == region
+
+        -- The source screenshot shows its left pocket selected. Neutralize
+        -- that fill first, then apply the same black fill as every other
+        -- selected compartment so all five states behave consistently.
+        if region == "items" and r < 0.17 then
+          local shade = active and BLACK or WHITE
+          return shade, shade, shade, a
+        end
+        if active and r > 0.83 and g > 0.83 and b > 0.83 then
+          return BLACK, BLACK, BLACK, a
+        end
+        return r, g, b, a
+      end)
+      local okImage, image = pcall(love.graphics.newImage, data)
+      if not okImage or not image then
+        classicBagSprites = false
+        return nil
+      end
+      if image.setFilter then image:setFilter("nearest", "nearest") end
+      sprites[pocket.key] = image
+    end
+    classicBagSprites = sprites
+    return sprites
+  end
+
+  local function drawClassicPocketBag(key, x, y, width, height)
+    local sprites = loadClassicBagSprites()
+    local sprite = sprites and (sprites[key] or sprites.all)
+    if sprite and love.graphics.draw then
+      local sw, sh = sprite:getDimensions()
+      gray(WHITE)
+      love.graphics.draw(sprite,
+        math.floor(x + (width - sw) / 2),
+        math.floor(y + (height - sh) / 2))
+      return true
+    end
+
+    -- Headless tests and damaged installs still receive a safe fallback.
+    local size = math.min(26, height - 8, width - 8)
+    drawPocketSymbol("all", x + math.floor((width - size) / 2),
+      y + math.floor((height - size) / 2), size)
+    return false
+  end
+
+  local function drawClassicRail(menu, layout)
+    local pocket = pocketFor(menu)
+    local margin, bagY, bagH, pocketY, pocketH = classicRailBoxes(layout)
+    local boxW = layout.railW - margin * 2
+
+    gray(BLACK)
+    love.graphics.rectangle("fill", margin - 1, bagY - 1, boxW + 2, bagH + 2)
+    gray(WHITE)
+    love.graphics.rectangle("fill", margin, bagY, boxW, bagH)
+    drawClassicPocketBag(pocket.key, margin, bagY, boxW, bagH)
+    menu.modernBagClassicPocketArt = pocket.key
+    menu.modernBagClassicPocketRegion = CLASSIC_BAG_REGIONS[pocket.key]
+
+    gray(DARK)
+    love.graphics.rectangle("fill", margin - 1, pocketY - 1,
+      boxW + 2, pocketH + 2)
+    gray(BLACK)
+    love.graphics.rectangle("fill", margin + 2, pocketY + 2,
+      boxW - 4, pocketH - 4)
+    local label = CLASSIC_POCKET_LABELS[pocket.key] or pocket.short
+    menu.modernBagClassicPocketLabel = classicRailLabel(Strings(label),
+      margin + 4, pocketY + 2, boxW - 8, pocketH - 4)
+  end
+
+  local function drawClassicList(menu, layout)
+    gray(BLACK)
+    love.graphics.rectangle("fill", layout.listX - 1, layout.listY,
+      1, layout.listH)
+    gray(WHITE)
+    love.graphics.rectangle("fill", layout.listX, layout.listY,
+      layout.listW, layout.listH)
+
+    if #menu.items == 0 then
+      local line1, line2 = Strings("THIS POCKET"), Strings("IS EMPTY")
+      drawText(line1,
+        layout.listX + (layout.listW - Font.width(line1)) / 2,
+        layout.listY + 22, layout.listW - 8, BLACK)
+      drawText(line2,
+        layout.listX + (layout.listW - Font.width(line2)) / 2,
+        layout.listY + 34, layout.listW - 8, BLACK)
+      return
+    end
+
+    for row = 1, layout.rows do
+      local index = menu.scroll + row
+      local item = menu.items[index]
+      if not item then break end
+      local y = layout.listY + 6 + (row - 1) * ROW_H
+      local selected = index == menu.index
+      local quantity = item.right or ""
+      local qWidth = Font.width(quantity)
+      if selected then
+        drawCode(Theme.cursor, layout.listX + 8, y, DARK)
+      elseif item.value == menu.modernBagSwapId then
+        drawCode(Theme.cursorHollow, layout.listX + 8, y, BLACK)
+      end
+      drawText(item.label, layout.listX + 20, y,
+        layout.listW - qWidth - 28, BLACK)
+      drawTextRight(quantity, layout.width - 4, y, qWidth + 4, BLACK)
+    end
+
+    if menu.scroll + layout.rows < #menu.items then
+      drawCode(Theme.moreArrow, layout.width - 10,
+        layout.listY + layout.listH - 10, BLACK)
+    end
+  end
+
+  local function drawClassicDetails(menu, layout)
+    gray(BLACK)
+    love.graphics.rectangle("fill", layout.detailX + 2,
+      layout.detailY + 2, layout.detailW - 4, layout.detailH - 2)
+    gray(WHITE)
+    love.graphics.rectangle("fill", layout.detailX + 4,
+      layout.detailY + 4, layout.detailW - 8, layout.detailH - 6)
+    gray(BLACK)
+    local x, y = layout.detailX + 6, layout.detailY + 6
+    local w, h = layout.detailW - 12, layout.detailH - 10
+    love.graphics.rectangle("fill", x, y, w, 1)
+    love.graphics.rectangle("fill", x, y + h - 1, w, 1)
+    love.graphics.rectangle("fill", x, y, 1, h)
+    love.graphics.rectangle("fill", x + w - 1, y, 1, h)
+
+    local config = listConfig(menu)
+    local status = config and menu.footer or menu.modernBagPrompt
+    local text
+    if status then
+      text = Strings(status):gsub("\n", " ")
+    elseif menu.modernBagSwapId then
+      local def = menu.game.data.items[menu.modernBagSwapId] or {}
+      text = Strings("Choose a new position for %s.",
+        def.name or menu.modernBagSwapId)
+    else
+      local item = menu.items[menu.index]
+      text = item and itemDescription(menu, item.value)
+        or Strings(pocketFor(menu).blurb)
+    end
+    local textX = layout.detailX + 10
+    local textY = layout.detailY + 10
+    local textW = layout.detailW - 20
+    local maxLines = math.max(2, math.floor((layout.detailH - 18) / 9))
+    for index, line in ipairs(wrappedLines(text, textW, maxLines)) do
+      drawText(line, textX, textY + (index - 1) * 9, textW, BLACK)
+    end
+  end
+
+  local function drawClassic(menu, layout)
+    drawClassicBackdrop(layout)
+    drawClassicHeader(menu, layout)
+    drawClassicRail(menu, layout)
+    drawClassicList(menu, layout)
+    drawClassicDetails(menu, layout)
+  end
+
   local function draw(menu)
     syncInventory(menu)
     local layout = layoutFor(menu)
     menu.rows = layout.rows
     clampList(menu)
+    if layout.skin == "classic_pocket" then
+      drawClassic(menu, layout)
+      gray(WHITE)
+      return
+    end
     local counts = pocketCounts(menu)
     drawBackdrop(layout)
     drawHeader(menu, layout)
@@ -931,6 +1288,38 @@ return function(mod)
     local data = game and game.data
     if not data then return nil end
     local layout = layoutFor(menu)
+    if layout.skin == "classic_pocket" then
+      local base = PaletteFX.pal(data, "MEWMON")
+        or PaletteFX.pal(data, "BLUEMON")
+      if not base then return nil end
+      local blue = PaletteFX.pal(data, "BLUEMON") or base
+      local green = PaletteFX.pal(data, "GREENMON") or base
+      local red = PaletteFX.pal(data, "REDMON") or base
+      local purple = PaletteFX.pal(data, "PURPLEMON") or base
+      local margin, bagY, bagH, pocketY, pocketH = classicRailBoxes(layout)
+      local zones = {
+        { colors = base, x = 0, y = 0,
+          w = layout.width, h = layout.height },
+        { colors = purple, x = layout.listX, y = 0,
+          w = layout.listW, h = layout.headerH },
+        { colors = blue, x = layout.railX, y = layout.railY,
+          w = layout.railW, h = layout.railH },
+        { colors = green, x = margin - 1, y = bagY - 1,
+          w = layout.railW - margin * 2 + 2, h = bagH + 2 },
+        { colors = red, x = margin - 1, y = pocketY - 1,
+          w = layout.railW - margin * 2 + 2, h = pocketH + 2 },
+      }
+      if #menu.items > 0 then
+        zones[#zones + 1] = {
+          colors = red,
+          x = layout.listX + 6,
+          y = layout.listY + 4
+            + (menu.index - menu.scroll - 1) * ROW_H,
+          w = 12, h = 11,
+        }
+      end
+      return zones
+    end
     local pocket = pocketFor(menu)
     local base = PaletteFX.pal(data, "BLUEMON")
       or PaletteFX.pal(data, "MEWMON")
@@ -1031,7 +1420,8 @@ return function(mod)
           local selectedTop = layout.listY + 3 + row * ROW_H
           local targetY = selectedTop - math.floor((boxH - 13) / 2)
           local targetX
-          if layout.showDetails and not layout.stacked then
+          if layout.skin ~= "classic_pocket"
+              and layout.showDetails and not layout.stacked then
             -- Straddle the seam: a small overlap joins the box to the row,
             -- while most of it opens into the details column.
             targetX = layout.listX + layout.listW - 6

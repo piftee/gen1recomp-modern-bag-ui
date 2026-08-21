@@ -1,4 +1,5 @@
 tests/modern_bag_ui_test.lua
 tests/preview_driver.lua
+design-qa.md
 .gitignore
 .github/

@@ -7,10 +7,11 @@ while keeping Gen 1's font, palettes, sounds and item behavior.
 
 ## What changes
 
-- seven pockets: All, Items, Medicine, Poké Balls, Battle, TMs/HMs and Key Items
+- All plus five pockets: Items, Medicine, Poké Balls, TMs/HMs and Key Items
+- two swappable skins: the current modern layout and a classic Pocket-style Bag
 - left/right pocket navigation with a remembered cursor in every pocket
 - a wider item list with selected-item details, quantities, money and capacity
-- pocket-specific illustrations drawn from the Game Boy's four visual shades
+- a source-faithful five-compartment backpack whose active pocket is highlighted
 - responsive width that makes useful space on modern displays
 - a portrait phone layout with more rows, stacked item details and readable controls
 - safe item reordering inside both the All list and filtered pockets
@@ -22,7 +23,9 @@ while keeping Gen 1's font, palettes, sounds and item behavior.
 
 The first **All** pocket keeps every carried item in acquisition order, so the
 screen remains familiar and compatible with the original flow. The other
-pockets provide the organization used by more recent Pokémon games.
+five pockets provide the organization used by more recent Pokémon games.
+Battle-use items such as X Attack live in Items, keeping the five UI pockets
+in a one-to-one relationship with the backpack's five highlighted regions.
 
 Item use, party targeting, battle turns, TMs/HMs, tossing, fishing, bicycles,
 the Itemfinder, Escape Rope, the Poké Flute and scripted battle Bags still use
@@ -40,7 +43,14 @@ per stack. Move or reduce overflow before exporting if you need that format.
 | Change pocket | Left / Right |
 | Choose item | Up / Down, then A |
 | Move item | Select, choose a new position, then Select or A |
+| Change Bag skin | Options → Bag Skin → Modern / Pocket |
 | Close Bag | B |
+
+The **Pocket** skin uses a woven blue side rail, the reference's segmented
+five-pocket backpack, a red active-pocket frame, clean white item sheet and a
+bordered description panel. The highlighted backpack compartment follows the
+selected pocket as you move left or right.
+Changing **Bag Skin** applies immediately to both the Bag and PC item lists.
 
 The same pocket controls work in the PC item lists. The active operation
 (Withdraw, Deposit or Toss), PC capacity and any confirmation message remain
@@ -69,6 +79,6 @@ python3 tools/modkit.py validate modern_bag_ui --base auto
 luajit mods/modern_bag_ui/tests/modern_bag_ui_test.lua
 ```
 
-This package contains no ROM-derived assets. Pokémon and related names and
-imagery are trademarks of their respective owners; this is an unofficial
-fan-made mod.
+The Pocket skin's backpack sprite is derived from the user-supplied visual
+reference. Pokémon and related names and imagery are trademarks of their
+respective owners; this is an unofficial fan-made mod.
