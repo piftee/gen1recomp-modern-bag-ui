@@ -6,6 +6,7 @@ local Bag = require("src.inventory.Bag")
 local Font = require("src.render.Font")
 local ListMenu = require("src.ui.ListMenu")
 local PaletteFX = require("src.render.PaletteFX")
+local Runtime = require("src.mods.Runtime")
 
 local data = T.fixtures.fresh()
 data.strings = {
@@ -79,6 +80,28 @@ PaletteFX.setMode("gbc")
 local run = T.sdk.loadMod("mods/modern_bag_ui", { data = data, dev = true })
 T.eq(#run.errors, 0, "loads clean (" .. tostring(run.errors[1]) .. ")")
 require("src.core.Strings").load(run.data)
+
+local schema = run.loader.optionSchemas.modern_bag_ui or {}
+T.eq(#schema, 1, "registers one Bag presentation choice")
+T.eq(schema[1].key, "skin", "the skin setting has a stable saved key")
+T.eq(schema[1].default, "modern", "existing installs keep the modern skin")
+local optionGame = {
+  save = { options = {} }, mods = run.loader,
+}
+local optionRows = Runtime.call("ui.options.rows",
+  function(_, base) return base end, optionGame, { { id = "text_speed" } })
+T.eq(optionRows[2] and optionRows[2].id, "modern_bag_ui_skin",
+  "BAG SKIN appears in the normal Options menu")
+T.eq(optionRows[2].value(optionGame), "MODERN",
+  "the Options row reports the default skin")
+optionRows[2].step(optionGame, 1)
+T.eq(optionRows[2].value(optionGame), "POCKET",
+  "the Options row switches to the reference-inspired skin")
+T.eq(optionGame.save.options.modOptions.modern_bag_ui.skin,
+  "classic_pocket", "the selected skin is persisted with mod options")
+optionRows[2].step(optionGame, 1)
+T.eq(optionRows[2].value(optionGame), "MODERN",
+  "the Options row cycles back to the original skin")
 
 local record = run.data.screens and run.data.screens.BagMenu
 T.check(type(record) == "table" and type(record.new) == "function",
@@ -239,6 +262,8 @@ local screen = record.new(game, {})
 stack:push(screen)
 T.check(screen.modernBagUI == true, "the modern presentation is installed")
 T.eq(screen.modernBagLayout, "pockets", "the pocket layout is identified")
+T.eq(#screen.modernBagPockets, 6,
+  "All plus five real pockets match the five-part reference backpack")
 T.eq(getmetatable(screen), ListMenu,
   "the screen keeps the original ListMenu-backed Bag controller")
 T.check(screen.holdsUIAnchors == true,
@@ -266,7 +291,7 @@ T.eq(table.concat(headerText, "|"), "BAG|7/255|ALL ITEMS",
 
 local expectedCategories = {
   ESCAPE_ROPE = "items", POTION = "medicine", ANTIDOTE = "medicine",
-  POKE_BALL = "balls", X_ATTACK = "battle", TM_FIX = "machines",
+  POKE_BALL = "balls", X_ATTACK = "items", TM_FIX = "machines",
   TOWN_MAP = "key",
 }
 for id, expected in pairs(expectedCategories) do
@@ -318,9 +343,12 @@ end
 
 press("right")
 T.eq(screen.modernBagPocket, 2, "RIGHT opens the general Items pocket")
-T.eq(#screen.items, 1, "the Items pocket filters out the other categories")
+T.eq(#screen.items, 2,
+  "the Items pocket includes general and battle-use items")
 T.eq(screen.items[1].value, "ESCAPE_ROPE",
   "the general item remains visible in its pocket")
+T.eq(screen.items[2].value, "X_ATTACK",
+  "battle enhancers fold into Items instead of creating a sixth sprite pocket")
 
 press("right")
 T.eq(screen.modernBagPocket, 3, "RIGHT advances to Medicine")
@@ -453,6 +481,60 @@ T.eq(zones[2].colors, run.data.palettes.palettes.GREENMON,
   "the Medicine pocket applies its own accent palette")
 T.check(screen:isWideBattleLayout(),
   "the Bag keeps its responsive surface when opened during a battle")
+
+-- The alternative skin reflows the same live Bag and PC controllers into
+-- the reference's side rail, white item sheet and bottom description card.
+run.loader.modOptions.modern_bag_ui.skin = "classic_pocket"
+local classicPixels = love.graphics.getPixelDimensions
+love.graphics.getPixelDimensions = function() return 1280, 720 end
+local classicLayout = screen:modernBagLayoutInfo()
+T.eq(classicLayout.skin, "classic_pocket",
+  "the selected Pocket skin changes the live Bag layout")
+T.eq(classicLayout.rows, 5,
+  "the wide Pocket skin preserves a five-row reference-like item sheet")
+local classicDrawOK, classicDrawErr = pcall(screen.draw, screen)
+T.check(classicDrawOK,
+  "the wide Pocket skin draws headlessly: " .. tostring(classicDrawErr))
+T.eq(screen.modernBagClassicPocketLabel, "Meds",
+  "the Pocket rail uses the reference's compact title-case label")
+T.eq(screen.modernBagClassicPocketArt, "medicine",
+  "the Pocket backpack reflects the active Medicine category")
+T.eq(screen.modernBagClassicPocketRegion, "medicine",
+  "Medicine highlights its dedicated compartment in the five-pocket sprite")
+local classicZones = screen:sgbPalettes(game) or {}
+T.check(#classicZones >= 6,
+  "the Pocket skin emits separate header, rail, icon and selection colors")
+T.eq(classicZones[2].colors, run.data.palettes.palettes.PURPLEMON,
+  "the Pocket skin title uses the reference's purple accent")
+T.eq(classicZones[3].colors, run.data.palettes.palettes.BLUEMON,
+  "the Pocket skin rail uses the reference's woven blue")
+T.eq(classicZones[4].colors, run.data.palettes.palettes.GREENMON,
+  "the Pocket skin backpack card uses a green accent")
+T.eq(classicZones[5].colors, run.data.palettes.palettes.REDMON,
+  "the active pocket frame uses the reference's red accent")
+screen:modernBagSwitchPocket(-1)
+local classicItemsOK, classicItemsErr = pcall(screen.draw, screen)
+T.check(classicItemsOK,
+  "the Pocket skin redraws after switching categories: "
+    .. tostring(classicItemsErr))
+T.eq(screen.modernBagClassicPocketLabel, "Items",
+  "the rail label stays small and title-case in the Items pocket")
+T.eq(screen.modernBagClassicPocketArt, "items",
+  "the backpack emblem changes when the active pocket changes")
+T.eq(screen.modernBagClassicPocketRegion, "items",
+  "Items highlights a different source-sprite compartment")
+love.graphics.getPixelDimensions = function() return 998, 1980 end
+local classicPortrait = screen:modernBagLayoutInfo()
+T.check(classicPortrait.stacked and classicPortrait.rows == 10,
+  "the Pocket skin remains usable in a tall phone layout")
+local classicPortraitOK, classicPortraitErr = pcall(screen.draw, screen)
+T.check(classicPortraitOK,
+  "the portrait Pocket skin draws headlessly: "
+    .. tostring(classicPortraitErr))
+T.eq(depositList:modernBagLayoutInfo().skin, "classic_pocket",
+  "the selected skin also applies to PC item lists")
+love.graphics.getPixelDimensions = classicPixels
+run.loader.modOptions.modern_bag_ui.skin = "modern"
 
 PaletteFX.setMode(previousMode)
 T.finish()

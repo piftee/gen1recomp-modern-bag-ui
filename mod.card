@@ -10,13 +10,14 @@ return {
       "PC withdraw, deposit and toss presentation",
     },
     added = {
-      "All, Items, Medicine, Poké Balls, Battle, TMs/HMs and Key Items pockets",
-      "Selected-item details and contextual pocket artwork",
+      "All plus five pockets: Items, Medicine, Poké Balls, TMs/HMs and Key Items",
+      "Reference-faithful backpack sprite with five highlighted compartments",
       "Responsive widescreen layout",
       "Portrait phone layout with a stacked detail card and expanded item list",
       "Per-pocket cursor memory and pocket-safe item reordering",
       "Up to 255 unique Bag and PC items with x999 quantities",
       "Bag-style pocket tabs, details and responsive layout in PC item lists",
+      "Modern and classic Pocket-style skins selectable from Options",
       "Centred responsive native item prompts and confirmation boxes",
       "Two-line translated item names and localizable descriptions",
     },
@@ -29,6 +30,7 @@ return {
   },
   credits = {
     { who = "Gen1Recomp", for_ = "native mod platform and original UI renderer" },
+    { who = "Pokémon Crystal", for_ = "user-supplied backpack sprite reference" },
   },
   compat = { engine = ">=0.0.0-dev <1.0.0", modApi = 2 },
 }

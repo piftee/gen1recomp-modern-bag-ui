@@ -1,7 +1,7 @@
 {
   "id": "modern_bag_ui",
   "name": "Modern Bag UI",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "github": "piftee/gen1recomp-modern-bag-ui",
   "api": 2,
   "entry": "main.lua",
@@ -15,5 +15,5 @@
   "incompatible": [],
   "permissions": ["engine_internals"],
   "experimental": false,
-  "description": "Responsive pocket-based Bag and PC layouts with 255 slots and x999 stacks."
+  "description": "Two swappable responsive Bag and PC skins with 255 slots and x999 stacks."
 }
