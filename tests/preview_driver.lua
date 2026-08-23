@@ -188,4 +188,14 @@ return function(game)
   })
   U.wait(12)
   U.shot(game, DIR .. "/classic_pocket_bag_mobile.png")
+
+  -- Empty PC withdrawal is the hardest mode to identify from item content
+  -- alone. Keep a portrait reference with the persistent route, green mode
+  -- accent and storage-specific empty copy all visible together.
+  while game.stack:top() do game.stack:pop() end
+  game.save.pcItems = {}
+  pcRoot = Screens.push(game, "PlayerPC")
+  pcRoot.items[1].onSelect()
+  U.wait(12)
+  U.shot(game, DIR .. "/classic_pocket_pc_withdraw_mobile.png")
 end

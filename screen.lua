@@ -14,6 +14,7 @@ return function(mod)
   local PaletteFX = require("src.render.PaletteFX")
   local Strings = require("src.core.Strings")
   local Theme = require("src.ui.Theme")
+  local TouchControls = require("src.core.TouchControls")
 
   local SCREEN_W = 160
   local SCREEN_H = 144
@@ -290,8 +291,38 @@ return function(mod)
     return tonumber(width) or 160, tonumber(height) or SCREEN_H
   end
 
+  -- The touch pad is painted after the game canvas. On portrait devices its
+  -- controls can occupy a large lower section of the drawable, so treating
+  -- that covered area as useful Bag height produces an unnecessarily tall
+  -- canvas and forces the visible Bag above it to a smaller integer scale.
+  local function portraitControlsTop(pixelWidth, pixelHeight)
+    if pixelHeight <= pixelWidth then return nil end
+    local okVisible, visible = pcall(TouchControls.visible, TouchControls)
+    if not okVisible or not visible then return nil end
+    local okLayout, controls = pcall(TouchControls.layout, TouchControls)
+    if not okLayout or type(controls) ~= "table" then return nil end
+    local _, unitHeight = love.graphics.getDimensions()
+    unitHeight = tonumber(unitHeight) or pixelHeight
+    if unitHeight <= 0 then return nil end
+    local dpiY = pixelHeight / unitHeight
+    local top
+    for _, name in ipairs({ "dpad", "a", "b", "start", "select" }) do
+      local zone = controls[name]
+      if type(zone) == "table" and tonumber(zone.cy)
+          and tonumber(zone.w) then
+        -- TouchControls' backing disc is the first visible pixel of a
+        -- control, at 0.58 times its configured width above the centre.
+        local y = (zone.cy - zone.w * 0.58) * dpiY
+        top = top and math.min(top, y) or y
+      end
+    end
+    if not top then return nil end
+    return math.max(SCREEN_H, math.floor(top))
+  end
+
   local function responsiveSize()
     local width, height = displayPixels()
+    local portraitWindow = height > width
 
     -- A wide window keeps the original 144px-tall responsive surface. A
     -- phone in portrait needs the inverse treatment: lock the readable
@@ -300,7 +331,7 @@ return function(mod)
     local portraitScale = math.max(1, math.floor(width / 160))
     local portraitHeight = math.min(PORTRAIT_MAX_H,
       math.floor(height / portraitScale))
-    if height >= width * 1.35 and portraitHeight >= PORTRAIT_MIN_H then
+    if portraitWindow and portraitHeight >= PORTRAIT_MIN_H then
       return 160, portraitHeight
     end
 
@@ -321,6 +352,24 @@ return function(mod)
     end
     width = math.max(160, math.floor(width))
     height = math.max(SCREEN_H, math.floor(height))
+    local canvasHeight = height
+
+    -- Keep the full responsive canvas—and therefore its larger integer
+    -- scale—but end the actual Bag composition above visible touch controls.
+    -- The unused lower canvas becomes a black control bed instead of making
+    -- the Bag narrower or letting controls cover its description/footer.
+    local pixelWidth, pixelHeight = displayPixels()
+    local controlsTop = portraitControlsTop(pixelWidth, pixelHeight)
+    if controlsTop then
+      local scale = math.max(1, math.floor(math.min(
+        pixelWidth / width, pixelHeight / canvasHeight)))
+      local offsetY = math.max(0,
+        math.floor((pixelHeight - canvasHeight * scale) / 2))
+      local usableHeight = math.floor((controlsTop - offsetY) / scale)
+      if usableHeight >= PORTRAIT_MIN_H then
+        height = math.min(height, usableHeight)
+      end
+    end
     local wide = width >= 196
     local stacked = not wide and height >= PORTRAIT_MIN_H
 
@@ -328,21 +377,30 @@ return function(mod)
       local headerH = stacked and 18 or 14
       local detailH = stacked and 84 or 40
       local detailY = height - detailH
-      local railW = wide and math.max(56, math.floor(width * 0.25)) or 48
-      local listH = detailY - headerH
+      local topRail = stacked
+      local railW = topRail and width
+        or (wide and math.max(56, math.floor(width * 0.25)) or 48)
+      local railH = topRail and 48 or (detailY - headerH)
+      local listX = topRail and 0 or railW
+      local listY = topRail and (headerH + railH) or headerH
+      local listW = topRail and width or (width - railW)
+      local listH = detailY - listY
       local rows = math.max(4, math.min(stacked and 10 or 6,
         math.floor((listH - 5) / ROW_H)))
       return {
         skin = "classic_pocket",
-        width = width, height = height,
-        wide = wide, stacked = stacked, showDetails = true,
+        width = width, height = height, canvasHeight = canvasHeight,
+        wide = wide, stacked = stacked, topRail = topRail,
+        showDetails = true,
         headerH = headerH, tabsY = headerH, tabsH = 0,
-        contentY = headerH, footerY = detailY, footerH = detailH,
+        contentY = listY, footerY = detailY, footerH = detailH,
         rows = rows,
         railX = 0, railY = headerH, railW = railW,
-        railH = detailY - headerH,
-        listX = railW, listY = headerH,
-        listW = width - railW, listH = listH,
+        railH = railH,
+        listX = listX, listY = listY,
+        listW = listW, listH = listH,
+        headerAccentX = topRail and 48 or listX,
+        headerAccentW = topRail and 64 or listW,
         detailX = 0, detailY = detailY,
         detailW = width, detailH = detailH,
       }
@@ -363,7 +421,7 @@ return function(mod)
       local listH = rows * ROW_H + 8
       local detailY = listY + listH + 4
       return {
-        width = width, height = height,
+        width = width, height = height, canvasHeight = canvasHeight,
         wide = false, stacked = true, showDetails = true,
         headerH = headerH, tabsY = tabsY, tabsH = TABS_H,
         contentY = contentY, footerY = footerY, footerH = footerH,
@@ -380,7 +438,7 @@ return function(mod)
       and math.max(4, math.floor((footerY - listY - 8) / ROW_H))
       or ROWS
     return {
-      width = width, height = height,
+      width = width, height = height, canvasHeight = canvasHeight,
       wide = wide, stacked = false, showDetails = wide,
       headerH = headerH, tabsY = tabsY, tabsH = TABS_H,
       contentY = contentY, footerY = footerY, footerH = footerH,
@@ -658,6 +716,9 @@ return function(mod)
   end
 
   local function drawBackdrop(layout)
+    gray(BLACK)
+    love.graphics.rectangle("fill", 0, 0,
+      layout.width, layout.canvasHeight or layout.height)
     gray(WHITE)
     love.graphics.rectangle("fill", 0, 0, layout.width, layout.height)
     gray(LIGHT)
@@ -748,7 +809,10 @@ return function(mod)
       layout.listW - 4, layout.listH - 4, 3)
 
     if #menu.items == 0 then
-      local line1, line2 = Strings("THIS POCKET"), Strings("IS EMPTY")
+      local config = listConfig(menu)
+      local empty = config and config.empty
+      local line1 = Strings(empty and empty[1] or "THIS POCKET")
+      local line2 = Strings(empty and empty[2] or "IS EMPTY")
       drawText(line1, layout.listX + (layout.listW - Font.width(line1)) / 2,
         layout.listY + 31, layout.listW - 12, DARK)
       drawText(line2, layout.listX + (layout.listW - Font.width(line2)) / 2,
@@ -855,10 +919,11 @@ return function(mod)
         layout.detailW - 4, layout.detailH - 4, 3)
 
       local item = menu.items[menu.index]
-      local caption = item and categoryFor(menu.game, item.value) or pocket.key
+      local config = listConfig(menu)
+      local caption = config and config.direction
+        or (item and categoryFor(menu.game, item.value) or pocket.key)
       drawText(caption:upper(), layout.detailX + 6, layout.detailY + 5,
         math.floor(layout.detailW * 0.58), DARK)
-      local config = listConfig(menu)
       local status = config and type(config.detailStatus) == "function"
         and config.detailStatus(menu)
         or ("¥%d"):format(menu.game.save.money or 0)
@@ -871,14 +936,15 @@ return function(mod)
         iconSize)
       local textX = layout.detailX + iconSize + 14
       local textW = layout.detailX + layout.detailW - 6 - textX
-      local name = item and item.label or pocket.label
+      local name = item and item.label
+        or (config and config.emptyName) or pocket.label
       local nameLines = wrappedLines(name, textW, 2)
       for index, line in ipairs(nameLines) do
         drawText(line, textX, layout.detailY + 24 + (index - 1) * 9,
           textW, BLACK)
       end
       local description = item and itemDescription(menu, item.value)
-        or Strings(pocket.blurb)
+        or Strings(config and config.blurb or pocket.blurb)
       local descriptionY = layout.detailY + 20 + iconSize + 4
       local descriptionW = layout.detailW - 12
       local maxLines = math.max(2, math.floor(
@@ -902,7 +968,9 @@ return function(mod)
       layout.detailW - 4, layout.detailH - 4, 3)
 
     local item = menu.items[menu.index]
-    local caption = item and categoryFor(menu.game, item.value) or pocket.key
+    local config = listConfig(menu)
+    local caption = config and config.direction
+      or (item and categoryFor(menu.game, item.value) or pocket.key)
     caption = caption:upper()
     drawText(caption, layout.detailX + 6, layout.detailY + 5,
       layout.detailW - 12, LIGHT)
@@ -922,7 +990,6 @@ return function(mod)
       end
       local descriptionY = layout.detailY + 58
         + math.max(0, #nameLines - 1) * 9
-      local config = listConfig(menu)
       local descriptionLines
       if config then
         descriptionLines = math.max(1, math.floor(
@@ -942,7 +1009,9 @@ return function(mod)
       drawPocketSymbol(pocket.key,
         layout.detailX + math.floor((layout.detailW - 28) / 2),
         layout.detailY + 20, 28)
-      local lines = wrappedLines(Strings(pocket.blurb), layout.detailW - 12, 3)
+      local lines = wrappedLines(
+        Strings(config and config.blurb or pocket.blurb),
+        layout.detailW - 12, 3)
       for index, line in ipairs(lines) do
         drawText(line, layout.detailX + 6,
           layout.detailY + 58 + (index - 1) * 9,
@@ -950,7 +1019,6 @@ return function(mod)
       end
     end
 
-    local config = listConfig(menu)
     if not config then
       local status = ("¥%d"):format(menu.game.save.money or 0)
       drawTextRight(status, layout.detailX + layout.detailW - 6,
@@ -1021,6 +1089,9 @@ return function(mod)
   -- and a full-width description card. It keeps the same controller and
   -- responsive layout contract as the modern skin.
   local function drawClassicBackdrop(layout)
+    gray(BLACK)
+    love.graphics.rectangle("fill", 0, 0,
+      layout.width, layout.canvasHeight or layout.height)
     gray(WHITE)
     love.graphics.rectangle("fill", 0, 0, layout.width, layout.height)
     gray(BLACK)
@@ -1045,12 +1116,19 @@ return function(mod)
     local pocket = pocketFor(menu)
     local config = listConfig(menu)
     local left = "POCKET"
-    drawText(fitText(Strings(left), layout.railW), 0,
+    local leftW = layout.topRail and 48 or layout.railW
+    drawText(fitText(Strings(left), leftW), 0,
       math.max(2, math.floor((layout.headerH - 8) / 2)),
-      layout.railW, WHITE)
+      leftW, WHITE)
 
-    local title = Strings(config and (config.label or config.short)
-      or pocket.label)
+    local titleSource
+    if config then
+      titleSource = layout.topRail and (config.short or config.label)
+        or (config.label or config.short)
+    else
+      titleSource = layout.topRail and pocket.short or pocket.label
+    end
+    local title = Strings(titleSource)
     local capacity
     if config and type(config.capacity) == "function" then
       capacity = tostring(config.capacity(menu) or "")
@@ -1059,23 +1137,47 @@ return function(mod)
         Bag.capacity(menu.game.data))
     end
     local capacityW = math.min(48, Font.width(capacity) + 4)
-    local titleW = math.max(24, layout.listW - capacityW - 8)
+    local titleX = layout.topRail and leftW or layout.listX
+    local titleW = layout.topRail
+      and math.max(24, layout.width - titleX - capacityW - 4)
+      or math.max(24, layout.listW - capacityW - 8)
     title = fitText(title, titleW)
     drawText(title,
-      layout.listX + math.max(3, math.floor((titleW - Font.width(title)) / 2)),
+      titleX + math.max(2, math.floor((titleW - Font.width(title)) / 2)),
       math.max(2, math.floor((layout.headerH - 8) / 2)), titleW, LIGHT)
     drawTextRight(capacity, layout.width - 3,
       math.max(2, math.floor((layout.headerH - 8) / 2)), capacityW, WHITE)
   end
 
   local function classicRailBoxes(layout)
+    if layout.topRail then
+      return {
+        bagX = layout.railX + 4,
+        bagY = layout.railY + 6,
+        bagW = 48,
+        bagH = 36,
+        pocketX = layout.railX + 56,
+        pocketY = layout.railY + 10,
+        pocketW = layout.railW - 60,
+        pocketH = 28,
+      }
+    end
     local margin = layout.wide and 5 or 3
     local bagH = layout.wide and 36 or 30
     local bagY = layout.railY + 4
     local pocketH = layout.wide and 28 or 25
     local pocketY = math.min(layout.railY + layout.railH - pocketH - 5,
       bagY + bagH + 8)
-    return margin, bagY, bagH, pocketY, pocketH
+    return {
+      bagX = layout.railX + margin,
+      bagY = bagY,
+      bagW = layout.railW - margin * 2,
+      bagH = bagH,
+      pocketX = layout.railX + margin,
+      pocketY = pocketY,
+      pocketW = layout.railW - margin * 2,
+      pocketH = pocketH,
+    }
   end
 
   local function classicBagRegionAt(x, y)
@@ -1153,38 +1255,49 @@ return function(mod)
 
   local function drawClassicRail(menu, layout)
     local pocket = pocketFor(menu)
-    local margin, bagY, bagH, pocketY, pocketH = classicRailBoxes(layout)
-    local boxW = layout.railW - margin * 2
+    local boxes = classicRailBoxes(layout)
 
     gray(BLACK)
-    love.graphics.rectangle("fill", margin - 1, bagY - 1, boxW + 2, bagH + 2)
+    love.graphics.rectangle("fill", boxes.bagX - 1, boxes.bagY - 1,
+      boxes.bagW + 2, boxes.bagH + 2)
     gray(WHITE)
-    love.graphics.rectangle("fill", margin, bagY, boxW, bagH)
-    drawClassicPocketBag(pocket.key, margin, bagY, boxW, bagH)
+    love.graphics.rectangle("fill", boxes.bagX, boxes.bagY,
+      boxes.bagW, boxes.bagH)
+    drawClassicPocketBag(pocket.key, boxes.bagX, boxes.bagY,
+      boxes.bagW, boxes.bagH)
     menu.modernBagClassicPocketArt = pocket.key
     menu.modernBagClassicPocketRegion = CLASSIC_BAG_REGIONS[pocket.key]
 
     gray(DARK)
-    love.graphics.rectangle("fill", margin - 1, pocketY - 1,
-      boxW + 2, pocketH + 2)
+    love.graphics.rectangle("fill", boxes.pocketX - 1, boxes.pocketY - 1,
+      boxes.pocketW + 2, boxes.pocketH + 2)
     gray(BLACK)
-    love.graphics.rectangle("fill", margin + 2, pocketY + 2,
-      boxW - 4, pocketH - 4)
+    love.graphics.rectangle("fill", boxes.pocketX + 2, boxes.pocketY + 2,
+      boxes.pocketW - 4, boxes.pocketH - 4)
     local label = CLASSIC_POCKET_LABELS[pocket.key] or pocket.short
     menu.modernBagClassicPocketLabel = classicRailLabel(Strings(label),
-      margin + 4, pocketY + 2, boxW - 8, pocketH - 4)
+      boxes.pocketX + 4, boxes.pocketY + 2,
+      boxes.pocketW - 8, boxes.pocketH - 4)
   end
 
   local function drawClassicList(menu, layout)
     gray(BLACK)
-    love.graphics.rectangle("fill", layout.listX - 1, layout.listY,
-      1, layout.listH)
+    if layout.topRail then
+      love.graphics.rectangle("fill", layout.listX, layout.listY - 1,
+        layout.listW, 1)
+    else
+      love.graphics.rectangle("fill", layout.listX - 1, layout.listY,
+        1, layout.listH)
+    end
     gray(WHITE)
     love.graphics.rectangle("fill", layout.listX, layout.listY,
       layout.listW, layout.listH)
 
     if #menu.items == 0 then
-      local line1, line2 = Strings("THIS POCKET"), Strings("IS EMPTY")
+      local config = listConfig(menu)
+      local empty = config and config.empty
+      local line1 = Strings(empty and empty[1] or "THIS POCKET")
+      local line2 = Strings(empty and empty[2] or "IS EMPTY")
       drawText(line1,
         layout.listX + (layout.listW - Font.width(line1)) / 2,
         layout.listY + 22, layout.listW - 8, BLACK)
@@ -1245,12 +1358,18 @@ return function(mod)
     else
       local item = menu.items[menu.index]
       text = item and itemDescription(menu, item.value)
-        or Strings(pocketFor(menu).blurb)
+        or Strings(config and config.blurb or pocketFor(menu).blurb)
     end
     local textX = layout.detailX + 10
     local textY = layout.detailY + 10
     local textW = layout.detailW - 20
     local maxLines = math.max(2, math.floor((layout.detailH - 18) / 9))
+    if config and config.direction then
+      drawText(fitText(Strings(config.direction), textW),
+        textX, textY, textW, BLACK)
+      textY = textY + 10
+      maxLines = math.max(1, maxLines - 1)
+    end
     for index, line in ipairs(wrappedLines(text, textW, maxLines)) do
       drawText(line, textX, textY + (index - 1) * 9, textW, BLACK)
     end
@@ -1296,19 +1415,27 @@ return function(mod)
       local green = PaletteFX.pal(data, "GREENMON") or base
       local red = PaletteFX.pal(data, "REDMON") or base
       local purple = PaletteFX.pal(data, "PURPLEMON") or base
-      local margin, bagY, bagH, pocketY, pocketH = classicRailBoxes(layout)
+      local config = listConfig(menu)
+      local mode = config and PaletteFX.pal(data, config.modePalette) or nil
+      local boxes = classicRailBoxes(layout)
       local zones = {
         { colors = base, x = 0, y = 0,
-          w = layout.width, h = layout.height },
-        { colors = purple, x = layout.listX, y = 0,
-          w = layout.listW, h = layout.headerH },
+          w = layout.width, h = layout.canvasHeight or layout.height },
+        { colors = mode or purple, x = layout.headerAccentX, y = 0,
+          w = layout.headerAccentW, h = layout.headerH },
         { colors = blue, x = layout.railX, y = layout.railY,
           w = layout.railW, h = layout.railH },
-        { colors = green, x = margin - 1, y = bagY - 1,
-          w = layout.railW - margin * 2 + 2, h = bagH + 2 },
-        { colors = red, x = margin - 1, y = pocketY - 1,
-          w = layout.railW - margin * 2 + 2, h = pocketH + 2 },
+        { colors = green, x = boxes.bagX - 1, y = boxes.bagY - 1,
+          w = boxes.bagW + 2, h = boxes.bagH + 2 },
+        { colors = red, x = boxes.pocketX - 1, y = boxes.pocketY - 1,
+          w = boxes.pocketW + 2, h = boxes.pocketH + 2 },
       }
+      if mode then
+        zones[#zones + 1] = {
+          colors = mode, x = layout.detailX, y = layout.detailY,
+          w = layout.detailW, h = layout.detailH,
+        }
+      end
       if #menu.items > 0 then
         zones[#zones + 1] = {
           colors = red,
@@ -1321,17 +1448,21 @@ return function(mod)
       return zones
     end
     local pocket = pocketFor(menu)
+    local config = listConfig(menu)
     local base = PaletteFX.pal(data, "BLUEMON")
       or PaletteFX.pal(data, "MEWMON")
     local accent = PaletteFX.pal(data, pocket.palette) or base
+    local mode = config and PaletteFX.pal(data, config.modePalette) or nil
     if not base then return nil end
     local zones = {
-      { colors = base, x = 0, y = 0, w = layout.width, h = layout.height },
-      { colors = accent, x = 0, y = 0, w = layout.width, h = layout.contentY },
+      { colors = base, x = 0, y = 0,
+        w = layout.width, h = layout.canvasHeight or layout.height },
+      { colors = mode or accent, x = 0, y = 0,
+        w = layout.width, h = layout.contentY },
     }
     if layout.showDetails then
       zones[#zones + 1] = {
-        colors = accent,
+        colors = mode or accent,
         x = layout.detailX, y = layout.detailY,
         w = layout.detailW, h = layout.detailH,
       }
@@ -1392,7 +1523,8 @@ return function(mod)
         end
       end
 
-      if owner and state and not state.modernBagUI and not state.uiSize
+      if owner and state and not state.modernBagUI
+          and (not state.uiSize or not state.isOpaque)
           and not state.__modernBagResponsiveOverlay then
         state.__modernBagResponsiveOverlay = true
         state.uiSize = function() return owner:uiSize() end

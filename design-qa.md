@@ -88,6 +88,16 @@ than five static screenshots of the same sprite.
    region. The requested black fill now follows the source's stronger selected
    state and remains distinct in all five compartment sizes. Post-fix evidence
    is the current focused comparison and five-state strip.
+6. Mobile legibility pass: the 48-pixel portrait side rail left too little room
+   for both its pocket label and translated item names. Tall layouts now move
+   the bag and active-pocket frame into a full-width strip beneath the header;
+   the item sheet uses all 160 logical pixels below it. Wide layouts retain the
+   reference-like side rail.
+7. Overlay and PC-operation pass: transparent overlays retain the owning Bag's
+   responsive surface even when they declare a classic size, while visible
+   touch controls are excluded from the usable portrait height. PC item views
+   repeat a directional route in the content card and use stable operation
+   colours and source-specific empty copy.
 
 ## Follow-up polish
 

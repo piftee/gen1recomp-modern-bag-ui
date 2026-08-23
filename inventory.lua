@@ -127,11 +127,19 @@ return function(mod, bagScreen)
       local actions = {
         {
           index = 1, label = "WITHDRAW ITEM", short = "WITHDRAW",
+          direction = "PC TO BAG", modePalette = "GREENMON",
+          empty = { "PC STORAGE", "IS EMPTY" },
+          emptyName = "WITHDRAW",
+          blurb = "Stored PC items move into your Bag.",
           store = function() return game.save.pcItems or {} end,
           detailStatus = function() return Strings("STORED") end,
         },
         {
           index = 2, label = "DEPOSIT ITEM", short = "DEPOSIT",
+          direction = "BAG TO PC", modePalette = "YELLOWMON",
+          empty = { "NO STORABLE", "BAG ITEMS" },
+          emptyName = "DEPOSIT",
+          blurb = "Carried items move from your Bag into the PC.",
           store = function() return game.save.inventory or {} end,
           filter = function(_, id) return not Bag.isBadge(id) end,
           detailStatus = function() return Strings("CARRIED") end,
@@ -139,6 +147,10 @@ return function(mod, bagScreen)
         },
         {
           index = 3, label = "TOSS ITEM", short = "TOSS",
+          direction = "PC TO TRASH", modePalette = "REDMON",
+          empty = { "NO STORED ITEMS", "TO TOSS" },
+          emptyName = "TOSS",
+          blurb = "Stored PC items selected here will be thrown away.",
           store = function() return game.save.pcItems or {} end,
           detailStatus = function() return Strings("STORED") end,
         },
@@ -172,6 +184,11 @@ return function(mod, bagScreen)
                     game.data.field.pcItemCap)
                 end,
                 detailStatus = action.detailStatus,
+                direction = action.direction,
+                modePalette = action.modePalette,
+                empty = action.empty,
+                emptyName = action.emptyName,
+                blurb = action.blurb,
               })
             end
             return result
