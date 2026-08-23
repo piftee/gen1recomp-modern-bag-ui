@@ -19,6 +19,8 @@ while keeping Gen 1's font, palettes, sounds and item behavior.
 - up to 255 unique item stacks in both the Bag and item-storage PC
 - quantities up to **x999** per item, with a wider native quantity selector
 - centred native USE/TOSS, quantity, confirmation and party-target overlays
+- overlay-safe sizing that keeps the responsive Bag surface on phones
+- persistent PC transfer routes and distinct Withdraw, Deposit and Toss colours
 - two-line detail names and translatable item descriptions for longer languages
 
 The first **All** pocket keeps every carried item in acquisition order, so the
@@ -46,15 +48,20 @@ per stack. Move or reduce overflow before exporting if you need that format.
 | Change Bag skin | Options → Bag Skin → Modern / Pocket |
 | Close Bag | B |
 
-The **Pocket** skin uses a woven blue side rail, the reference's segmented
+The **Pocket** skin uses a woven blue pocket selector, the reference's segmented
 five-pocket backpack, a red active-pocket frame, clean white item sheet and a
 bordered description panel. The highlighted backpack compartment follows the
-selected pocket as you move left or right.
+selected pocket as you move left or right. On wide displays the selector is a
+side rail; on tall phones it moves above the list so pocket labels and item
+names retain the full readable width.
 Changing **Bag Skin** applies immediately to both the Bag and PC item lists.
 
 The same pocket controls work in the PC item lists. The active operation
 (Withdraw, Deposit or Toss), PC capacity and any confirmation message remain
-visible in the responsive Bag-style frame.
+visible in the responsive Bag-style frame. The content area also shows the
+route—**PC TO BAG**, **BAG TO PC** or **PC TO TRASH**—with a stable green,
+yellow or red operation accent. Empty lists name the actual source instead of
+falling back to the normal Bag pocket description.
 
 ## Translations
 

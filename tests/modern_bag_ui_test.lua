@@ -155,6 +155,32 @@ local pcMenu = pcRecord.new(pcGame)
 pcStack:push(pcMenu)
 T.eq(pcGame.data.field.pcItemCap, 255,
   "the item-storage PC accepts 255 unique stacks")
+pcMenu.items[1].onSelect()
+local withdrawList = pcStack:top()
+T.eq(withdrawList.modernBagListConfig.direction, "PC TO BAG",
+  "WITHDRAW keeps its transfer direction in the content presentation")
+T.eq(withdrawList.modernBagListConfig.modePalette, "GREENMON",
+  "WITHDRAW has a stable green operation accent")
+T.eq(table.concat(withdrawList.modernBagListConfig.empty, "|"),
+  "PC STORAGE|IS EMPTY",
+  "WITHDRAW names empty PC storage instead of an ambiguous pocket")
+local withdrawText = {}
+local withdrawFontDraw = Font.draw
+local withdrawPixels = love.graphics.getPixelDimensions
+love.graphics.getPixelDimensions = function() return 1280, 720 end
+Font.draw = function(text, ...)
+  withdrawText[#withdrawText + 1] = tostring(text)
+  return withdrawFontDraw(text, ...)
+end
+local withdrawDrawOK, withdrawDrawErr = pcall(withdrawList.draw, withdrawList)
+Font.draw = withdrawFontDraw
+love.graphics.getPixelDimensions = withdrawPixels
+T.check(withdrawDrawOK,
+  "the directional WITHDRAW view draws headlessly: "
+    .. tostring(withdrawDrawErr))
+T.check(table.concat(withdrawText, "|"):find("PC TO BAG", 1, true) ~= nil,
+  "WITHDRAW repeats PC TO BAG inside the persistent detail area")
+pcStack:pop()
 pcMenu.items[2].onSelect()
 local depositList = pcStack:top()
 T.check(depositList ~= pcMenu and type(depositList.onChoose) == "function",
@@ -167,6 +193,10 @@ T.check(depositList:isWideBattleLayout(),
   "the PC owns its responsive canvas while native overlays are visible")
 T.check(depositList.holdsUIAnchors == true,
   "PC quantity prompts stay inside the composed modern surface")
+T.eq(depositList.modernBagListConfig.direction, "BAG TO PC",
+  "DEPOSIT visibly reverses the transfer direction")
+T.eq(depositList.modernBagListConfig.modePalette, "YELLOWMON",
+  "DEPOSIT uses a different operation accent from WITHDRAW")
 local pcLayout = depositList:modernBagLayoutInfo()
 T.eq(pcLayout.rows, 5,
   "the classic-height PC layout reserves room for a readable status footer")
@@ -314,6 +344,47 @@ T.eq(portraitW, 160,
   "a tall phone keeps the readable 160px Bag width")
 T.eq(portraitH, 330,
   "a tall phone uses the full portrait height at the same integer scale")
+
+-- A transparent overlay may already declare the classic 160x144 surface.
+-- It still belongs inside the Bag composition rather than replacing it.
+local preSizedOverlay = {
+  uiSize = function() return 160, 144 end,
+  draw = function() end,
+}
+stack:push(preSizedOverlay)
+T.check(preSizedOverlay.__modernBagResponsiveOverlay == true,
+  "a pre-sized transparent overlay is adopted by the Bag surface")
+T.eq(select(1, preSizedOverlay:uiSize()), portraitW,
+  "the pre-sized overlay keeps the portrait Bag width")
+T.eq(select(2, preSizedOverlay:uiSize()), portraitH,
+  "the pre-sized overlay no longer shrinks the Bag to classic height")
+stack:pop()
+
+-- Visible touch controls reserve their occupied lower area before the Bag
+-- chooses its native height, keeping the canvas at a larger integer scale.
+local TouchControls = require("src.core.TouchControls")
+local touchVisible, touchLayout = TouchControls.visible, TouchControls.layout
+local touchDimensions = love.graphics.getDimensions
+love.graphics.getPixelDimensions = function() return 480, 960 end
+love.graphics.getDimensions = function() return 480, 960 end
+TouchControls.visible = function() return true end
+TouchControls.layout = function()
+  local zone = { cy = 850, w = 160 }
+  return { dpad = zone, a = zone, b = zone, start = zone, select = zone }
+end
+local touchW, touchH = screen:uiSize()
+local touchBagLayout = screen:modernBagLayoutInfo()
+TouchControls.visible, TouchControls.layout = touchVisible, touchLayout
+love.graphics.getDimensions = touchDimensions
+love.graphics.getPixelDimensions = function() return 998, 1980 end
+T.eq(touchW, 160,
+  "a touch-overlay phone keeps the readable Bag width")
+T.eq(touchH, 320,
+  "visible controls do not shrink the responsive Bag canvas")
+T.eq(touchBagLayout.canvasHeight, 320,
+  "the full-height canvas preserves its larger integer scale")
+T.eq(touchBagLayout.height, 252,
+  "the visible Bag composition ends above the covered control area")
 game.renderer = { uiSize = function() return portraitW, portraitH end }
 local portrait = screen:modernBagLayoutInfo()
 T.check(portrait.stacked and portrait.showDetails,
@@ -527,10 +598,26 @@ love.graphics.getPixelDimensions = function() return 998, 1980 end
 local classicPortrait = screen:modernBagLayoutInfo()
 T.check(classicPortrait.stacked and classicPortrait.rows == 10,
   "the Pocket skin remains usable in a tall phone layout")
+T.check(classicPortrait.topRail,
+  "the portrait Pocket skin moves its selector above the item list")
+T.eq(classicPortrait.railW, 160,
+  "the portrait pocket selector uses the full readable width")
+T.eq(classicPortrait.listX, 0,
+  "the portrait item sheet no longer loses width to a side rail")
+T.eq(classicPortrait.listW, 160,
+  "portrait item names receive the complete screen width")
+T.eq(classicPortrait.listY,
+  classicPortrait.headerH + classicPortrait.railH,
+  "the item sheet begins directly beneath the horizontal pocket selector")
 local classicPortraitOK, classicPortraitErr = pcall(screen.draw, screen)
 T.check(classicPortraitOK,
   "the portrait Pocket skin draws headlessly: "
     .. tostring(classicPortraitErr))
+local classicPortraitZones = screen:sgbPalettes(game) or {}
+T.eq(classicPortraitZones[3] and classicPortraitZones[3].w, 160,
+  "the woven pocket strip palette spans the portrait width")
+T.check((classicPortraitZones[5] and classicPortraitZones[5].w or 0) > 80,
+  "the active portrait pocket label has a readable wide color frame")
 T.eq(depositList:modernBagLayoutInfo().skin, "classic_pocket",
   "the selected skin also applies to PC item lists")
 love.graphics.getPixelDimensions = classicPixels
