@@ -20,6 +20,7 @@ while keeping Gen 1's font, palettes, sounds and item behavior.
 - quantities up to **x999** per item, with a wider native quantity selector
 - centred native USE/TOSS, quantity, confirmation and party-target overlays
 - overlay-safe sizing that keeps the responsive Bag surface on phones
+- faithful 160x144 presentation when the game's **Faithful Ratio** option is on
 - persistent PC transfer routes and distinct Withdraw, Deposit and Toss colours
 - two-line detail names and translatable item descriptions for longer languages
 
@@ -55,6 +56,11 @@ selected pocket as you move left or right. On wide displays the selector is a
 side rail; on tall phones it moves above the list so pocket labels and item
 names retain the full readable width.
 Changing **Bag Skin** applies immediately to both the Bag and PC item lists.
+
+Modern Bag UI can load alongside **Useful Bag**. Useful Bag's storage patches
+are applied first, then Modern Bag UI owns the shared Bag presentation. The
+game's **Faithful Ratio** option remains authoritative: when enabled, the Bag
+and every prompt it opens use the native 160x144 surface, including on phones.
 
 The same pocket controls work in the PC item lists. The active operation
 (Withdraw, Deposit or Toss), PC capacity and any confirmation message remain

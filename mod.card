@@ -15,6 +15,7 @@ return {
       "Responsive widescreen layout",
       "Portrait phone layout with a stacked detail card and expanded item list",
       "Top-mounted Pocket selector and full-width item names on tall phones",
+      "Native 160x144 Bag and prompt layout when Faithful Ratio is enabled",
       "Per-pocket cursor memory and pocket-safe item reordering",
       "Up to 255 unique Bag and PC items with x999 quantities",
       "Bag-style pocket tabs, details and responsive layout in PC item lists",
@@ -25,7 +26,7 @@ return {
     },
     known = {
       "Uses the engine_internals permission to retain the complete built-in Bag controller",
-      "Other mods that replace the BagMenu screen itself conflict by design",
+      "Modern Bag UI takes presentation ownership when another installed mod also registers BagMenu",
       "Other mods that replace the PlayerPC screen itself conflict by design",
       "Original cartridge .sav export remains limited to 20/50 unique items and x99 stacks",
     },

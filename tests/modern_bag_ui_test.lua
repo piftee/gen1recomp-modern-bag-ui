@@ -283,6 +283,7 @@ local game = {
   save = {
     inventory = inventory, bagOrder = order,
     money = 4321, player = { name = "RED" }, party = {}, flags = {},
+    options = {},
   },
   stack = stack,
   input = input,
@@ -344,6 +345,44 @@ T.eq(portraitW, 160,
   "a tall phone keeps the readable 160px Bag width")
 T.eq(portraitH, 330,
   "a tall phone uses the full portrait height at the same integer scale")
+
+-- Useful Bag can be installed alongside this mod, but FAITHFUL RATIO is an
+-- engine display promise. On mobile it cannot resize the physical window, so
+-- the Bag must explicitly give its responsive portrait canvas back and use
+-- the native 160x144 surface while the option is enabled.
+game.save.options.faithfulRes = 1
+game.renderer = { uiSize = function() return portraitW, portraitH end }
+local faithfulW, faithfulH = screen:uiSize()
+local faithfulLayout = screen:modernBagLayoutInfo()
+T.eq(faithfulW, 160,
+  "FAITHFUL RATIO keeps the Bag at the native Game Boy width")
+T.eq(faithfulH, 144,
+  "FAITHFUL RATIO rejects the tall mobile Bag surface")
+T.eq(faithfulLayout.width, 160,
+  "the faithful Bag layout ignores a stale responsive renderer width")
+T.eq(faithfulLayout.height, 144,
+  "the faithful Bag layout ignores a stale responsive renderer height")
+T.eq(faithfulLayout.canvasHeight, 144,
+  "the faithful Bag canvas remains exactly 160x144")
+T.check(not faithfulLayout.stacked,
+  "FAITHFUL RATIO uses the compact native composition")
+
+local faithfulOverlay = {
+  draw = function() end,
+}
+stack:push(faithfulOverlay)
+T.check(faithfulOverlay.__modernBagResponsiveOverlay == true,
+  "native prompts are still adopted while FAITHFUL RATIO is enabled")
+T.eq(select(1, faithfulOverlay:uiSize()), 160,
+  "a faithful Bag prompt inherits the native width")
+T.eq(select(2, faithfulOverlay:uiSize()), 144,
+  "a faithful Bag prompt inherits the native height")
+stack:pop()
+
+game.save.options.faithfulRes = 0
+game.renderer = nil
+T.eq(select(2, screen:uiSize()), portraitH,
+  "turning FAITHFUL RATIO off restores the responsive portrait Bag")
 
 -- A transparent overlay may already declare the classic 160x144 surface.
 -- It still belongs inside the Bag composition rather than replacing it.
@@ -622,6 +661,58 @@ T.eq(depositList:modernBagLayoutInfo().skin, "classic_pocket",
   "the selected skin also applies to PC item lists")
 love.graphics.getPixelDimensions = classicPixels
 run.loader.modOptions.modern_bag_ui.skin = "modern"
+
+-- The current Useful Bag release also registers BagMenu at priority 100.
+-- Its optional dependency must initialize first, after which Modern Bag takes
+-- explicit presentation ownership without disabling either mod. Keep this as
+-- a local fixture so the regression does not depend on a network checkout.
+run.release()
+local compatibilityData = T.fixtures.fresh()
+compatibilityData.items.POTION = {
+  id = "POTION", name = "POTION", price = 300,
+}
+local compatibilityRun = T.sdk.loadMods({
+  "mods/modern_bag_ui/tests/fixtures/useful_bag",
+  "mods/modern_bag_ui",
+}, { data = compatibilityData, dev = true })
+T.eq(#compatibilityRun.errors, 0,
+  "Useful Bag and Modern Bag load together without a BagMenu collision")
+T.check(compatibilityRun.loader.mods.useful_bag ~= nil,
+  "the Useful Bag compatibility fixture remains enabled")
+T.eq(compatibilityRun.data.constants.bagSize, 999,
+  "Useful Bag's larger storage patch survives Modern Bag presentation")
+
+local compatibilityStack = { states = {} }
+function compatibilityStack:push(state)
+  self.states[#self.states + 1] = state
+end
+function compatibilityStack:pop() return table.remove(self.states) end
+function compatibilityStack:top() return self.states[#self.states] end
+local compatibilityInput = {}
+function compatibilityInput:wasPressed() return false end
+function compatibilityInput:isDown() return false end
+local compatibilityGame = {
+  data = compatibilityRun.data,
+  save = {
+    inventory = { POTION = 1 }, bagOrder = { "POTION" }, money = 0,
+    options = { faithfulRes = 1 }, party = {}, flags = {},
+  },
+  stack = compatibilityStack,
+  input = compatibilityInput,
+  mods = compatibilityRun.loader,
+}
+local compatibilityRecord = compatibilityRun.data.screens.BagMenu
+local compatibilityPixels = love.graphics.getPixelDimensions
+love.graphics.getPixelDimensions = function() return 998, 1980 end
+local compatibilityScreen = compatibilityRecord.new(compatibilityGame, {})
+T.check(compatibilityScreen.modernBagUI == true,
+  "Modern Bag owns the shared presentation after Useful Bag loads")
+T.eq(select(1, compatibilityScreen:uiSize()), 160,
+  "the combined mods keep Faithful Ratio's native width")
+T.eq(select(2, compatibilityScreen:uiSize()), 144,
+  "the combined mods keep Faithful Ratio's native height")
+love.graphics.getPixelDimensions = compatibilityPixels
+compatibilityRun.release()
 
 PaletteFX.setMode(previousMode)
 T.finish()

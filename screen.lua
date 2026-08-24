@@ -339,14 +339,31 @@ return function(mod)
     return math.max(160, math.min(400, math.floor(width / scale))), SCREEN_H
   end
 
-  local function uiSize()
+  -- FAITHFUL RATIO owns the shape of the complete UI surface. On desktop the
+  -- option also resizes the window, so responsiveSize happens to arrive at
+  -- 160x144. Phones cannot resize their window, however: the renderer locks
+  -- a 160x144 viewport inside the physical display instead. Reading only the
+  -- drawable dimensions there made the Bag request a tall 160x400 canvas and
+  -- defeated that lock (most visibly alongside Useful Bag).
+  local function faithfulRatioEnabled(menu)
+    local options = menu and menu.game and menu.game.save
+      and menu.game.save.options
+    return (tonumber(options and options.faithfulRes) or 0) > 0
+  end
+
+  local function uiSize(menu)
+    if faithfulRatioEnabled(menu) then return SCREEN_W, SCREEN_H end
     return responsiveSize()
   end
 
   local function layoutFor(menu)
-    local width, height = responsiveSize()
+    local faithful = faithfulRatioEnabled(menu)
+    local width, height = uiSize(menu)
     local renderer = menu and menu.game and menu.game.renderer
-    if renderer and renderer.uiSize then
+    -- Renderer:uiSize still describes the previous frame while an option or
+    -- state is changing. Never let that stale responsive size override the
+    -- explicit faithful-ratio request.
+    if not faithful and renderer and renderer.uiSize then
       local rendererW, rendererH = renderer:uiSize()
       width, height = rendererW or width, rendererH or height
     end

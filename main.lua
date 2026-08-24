@@ -106,7 +106,15 @@ return function(mod)
     return
   end
 
-  mod.content.screens:register("BagMenu", bagScreen)
+  -- Useful Bag also registers BagMenu. Its optional dependency edge lets it
+  -- install storage/controller patches first; Modern Bag then takes explicit
+  -- ownership of the shared presentation record instead of making the later
+  -- registration fail and silently disabling one of the mods.
+  if mod.content.screens:get("BagMenu") then
+    mod.content.screens:override("BagMenu", bagScreen)
+  else
+    mod.content.screens:register("BagMenu", bagScreen)
+  end
   mod.content.screens:register("PlayerPC", inventory.playerPC)
   mod.exports.inventoryLimits = inventory.limits
   mod.exports.skins = SKINS
