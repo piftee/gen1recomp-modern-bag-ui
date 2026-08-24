@@ -1,5 +1,7 @@
 tests/modern_bag_ui_test.lua
 tests/preview_driver.lua
+tests/fixtures/useful_bag/main.lua
+tests/fixtures/useful_bag/manifest.json
 design-qa.md
 .gitignore
 .github/
