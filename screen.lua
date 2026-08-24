@@ -5,7 +5,8 @@
 -- tutorial input and several screens opened after item use. This module wraps
 -- that controller instead of duplicating it. Only the visible list, drawing,
 -- left/right pocket navigation and filtered-list reordering live here.
-return function(mod)
+return function(mod, compatibility)
+  compatibility = compatibility or {}
   local BagMenu = require("src.ui.BagMenu")
   local Bag = require("src.inventory.Bag")
   local Assets = require("src.render.Assets")
@@ -351,19 +352,54 @@ return function(mod)
     return (tonumber(options and options.faithfulRes) or 0) > 0
   end
 
+  -- Useful Bag calls the same presentation choice FULLSCREEN BAG MENUS.
+  -- OFF means its native Game Boy-sized pop-out, so Modern Bag must not
+  -- replace that choice with its tall-phone canvas merely because it owns the
+  -- shared BagMenu presentation record.
+  local function usefulBagNativeMenus(menu)
+    if not compatibility.usefulBag then return false end
+    local game = menu and menu.game
+    local loaderOptions = game and game.mods and game.mods.modOptions
+    local savedOptions = game and game.save and game.save.options
+      and game.save.options.modOptions
+    local bucket = loaderOptions and loaderOptions.useful_bag
+    local value = bucket and bucket.fullscreen_menu
+    if value == nil then
+      bucket = savedOptions and savedOptions.useful_bag
+      value = bucket and bucket.fullscreen_menu
+    end
+    return value == false
+  end
+
+  local function nativeViewportRequested(menu)
+    return faithfulRatioEnabled(menu) or usefulBagNativeMenus(menu)
+  end
+
+  local function confineNativeViewport(menu)
+    if not nativeViewportRequested(menu) then return end
+    local renderer = menu and menu.game and menu.game.renderer
+    if renderer then
+      -- Game:draw may inherit BATTLE SIZE = FILL from a battle underneath the
+      -- Bag. Renderer:endFrame applies that after fitScale, which stretches a
+      -- correctly-sized 160x144 canvas back over the whole phone. The Bag is
+      -- a native pop-out in this mode, so the later fill override must not win.
+      renderer.uiFill = false
+    end
+  end
+
   local function uiSize(menu)
-    if faithfulRatioEnabled(menu) then return SCREEN_W, SCREEN_H end
+    if nativeViewportRequested(menu) then return SCREEN_W, SCREEN_H end
     return responsiveSize()
   end
 
   local function layoutFor(menu)
-    local faithful = faithfulRatioEnabled(menu)
+    local nativeViewport = nativeViewportRequested(menu)
     local width, height = uiSize(menu)
     local renderer = menu and menu.game and menu.game.renderer
     -- Renderer:uiSize still describes the previous frame while an option or
     -- state is changing. Never let that stale responsive size override the
     -- explicit faithful-ratio request.
-    if not faithful and renderer and renderer.uiSize then
+    if not nativeViewport and renderer and renderer.uiSize then
       local rendererW, rendererH = renderer:uiSize()
       width, height = rendererW or width, rendererH or height
     end
@@ -1401,6 +1437,7 @@ return function(mod)
   end
 
   local function draw(menu)
+    confineNativeViewport(menu)
     syncInventory(menu)
     local layout = layoutFor(menu)
     menu.rows = layout.rows

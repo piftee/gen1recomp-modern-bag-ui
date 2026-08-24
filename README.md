@@ -61,6 +61,8 @@ Modern Bag UI can load alongside **Useful Bag**. Useful Bag's storage patches
 are applied first, then Modern Bag UI owns the shared Bag presentation. The
 game's **Faithful Ratio** option remains authoritative: when enabled, the Bag
 and every prompt it opens use the native 160x144 surface, including on phones.
+Turning Useful Bag's **Fullscreen Bag Menus** option off selects the same
+centred native pop-out instead of the responsive full-phone canvas.
 
 The same pocket controls work in the PC item lists. The active operation
 (Withdraw, Deposit or Toss), PC capacity and any confirmation message remain

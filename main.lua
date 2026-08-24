@@ -91,7 +91,10 @@ return function(mod)
   local makeInventory = loadFactory("inventory.lua")
   if not makeScreen or not makeInventory then return end
 
-  local screenOK, bagScreen = pcall(makeScreen, mod)
+  local compatibility = {
+    usefulBag = mod.find("useful_bag") ~= nil,
+  }
+  local screenOK, bagScreen = pcall(makeScreen, mod, compatibility)
   if not screenOK or type(bagScreen) ~= "table"
       or type(bagScreen.new) ~= "function" then
     mod.log:error("bag screen factory failed: %s", tostring(bagScreen))
