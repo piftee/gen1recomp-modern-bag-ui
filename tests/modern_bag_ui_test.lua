@@ -351,7 +351,10 @@ T.eq(portraitH, 330,
 -- the Bag must explicitly give its responsive portrait canvas back and use
 -- the native 160x144 surface while the option is enabled.
 game.save.options.faithfulRes = 1
-game.renderer = { uiSize = function() return portraitW, portraitH end }
+game.renderer = {
+  uiSize = function() return portraitW, portraitH end,
+  uiFill = true,
+}
 local faithfulW, faithfulH = screen:uiSize()
 local faithfulLayout = screen:modernBagLayoutInfo()
 T.eq(faithfulW, 160,
@@ -366,6 +369,11 @@ T.eq(faithfulLayout.canvasHeight, 144,
   "the faithful Bag canvas remains exactly 160x144")
 T.check(not faithfulLayout.stacked,
   "FAITHFUL RATIO uses the compact native composition")
+local faithfulDrawOK, faithfulDrawErr = pcall(screen.draw, screen)
+T.check(faithfulDrawOK,
+  "the faithful Bag draws headlessly: " .. tostring(faithfulDrawErr))
+T.eq(game.renderer.uiFill, false,
+  "the faithful Bag cancels inherited fill scaling before presentation")
 
 local faithfulOverlay = {
   draw = function() end,
@@ -695,22 +703,37 @@ local compatibilityGame = {
   data = compatibilityRun.data,
   save = {
     inventory = { POTION = 1 }, bagOrder = { "POTION" }, money = 0,
-    options = { faithfulRes = 1 }, party = {}, flags = {},
+    options = { faithfulRes = 0 }, party = {}, flags = {},
   },
   stack = compatibilityStack,
   input = compatibilityInput,
   mods = compatibilityRun.loader,
+  renderer = {
+    uiSize = function() return 160, 330 end,
+    uiFill = true,
+  },
 }
 local compatibilityRecord = compatibilityRun.data.screens.BagMenu
 local compatibilityPixels = love.graphics.getPixelDimensions
 love.graphics.getPixelDimensions = function() return 998, 1980 end
+compatibilityRun.loader.modOptions.useful_bag = { fullscreen_menu = false }
 local compatibilityScreen = compatibilityRecord.new(compatibilityGame, {})
 T.check(compatibilityScreen.modernBagUI == true,
   "Modern Bag owns the shared presentation after Useful Bag loads")
 T.eq(select(1, compatibilityScreen:uiSize()), 160,
-  "the combined mods keep Faithful Ratio's native width")
+  "Useful Bag's native-menu setting keeps the Bag width at 160")
 T.eq(select(2, compatibilityScreen:uiSize()), 144,
-  "the combined mods keep Faithful Ratio's native height")
+  "Useful Bag's native-menu setting keeps the Bag height at 144")
+local compatibilityDrawOK, compatibilityDrawErr = pcall(
+  compatibilityScreen.draw, compatibilityScreen)
+T.check(compatibilityDrawOK,
+  "the Useful Bag native pop-out draws headlessly: "
+    .. tostring(compatibilityDrawErr))
+T.eq(compatibilityGame.renderer.uiFill, false,
+  "Useful Bag's native pop-out cancels inherited fill scaling")
+compatibilityRun.loader.modOptions.useful_bag.fullscreen_menu = true
+T.eq(select(2, compatibilityScreen:uiSize()), 330,
+  "Useful Bag's fullscreen setting restores the tall mobile Bag")
 love.graphics.getPixelDimensions = compatibilityPixels
 compatibilityRun.release()
 
