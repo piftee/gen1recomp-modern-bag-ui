@@ -17,6 +17,8 @@ return {
       "Top-mounted Pocket selector and full-width item names on tall phones",
       "Native 160x144 Bag and prompt layout when Faithful Ratio is enabled",
       "Centred native pop-out when Useful Bag fullscreen menus are disabled",
+      "Dedicated Bag Options page for all installed Bag presentation settings",
+      "Kanto Reforged five-pocket, Berry, GIVE and 60-slot compatibility",
       "Per-pocket cursor memory and pocket-safe item reordering",
       "Up to 255 unique Bag and PC items with x999 quantities",
       "Bag-style pocket tabs, details and responsive layout in PC item lists",
