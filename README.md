@@ -32,7 +32,9 @@ in a one-to-one relationship with the backpack's five highlighted regions.
 
 Item use, party targeting, battle turns, TMs/HMs, tossing, fishing, bicycles,
 the Itemfinder, Escape Rope, the Poké Flute and scripted battle Bags still use
-the engine's built-in controller.
+their owning controller. With Kanto Reforged installed, its five native
+Items, Balls, Key Items, TMs/HMs and Berries pockets are shown in the Modern
+Bag instead of being replaced by this mod's normal pocket model.
 
 Expanded inventory data is fully supported by Gen1Recomp's normal save files.
 Exporting a save to the original Pokémon Red cartridge `.sav` format still
@@ -46,7 +48,7 @@ per stack. Move or reduce overflow before exporting if you need that format.
 | Change pocket | Left / Right |
 | Choose item | Up / Down, then A |
 | Move item | Select, choose a new position, then Select or A |
-| Change Bag skin | Options → Bag Skin → Modern / Pocket |
+| Change Bag settings | Options → Bag Options |
 | Close Bag | B |
 
 The **Pocket** skin uses a woven blue pocket selector, the reference's segmented
@@ -55,14 +57,31 @@ bordered description panel. The highlighted backpack compartment follows the
 selected pocket as you move left or right. On wide displays the selector is a
 side rail; on tall phones it moves above the list so pocket labels and item
 names retain the full readable width.
-Changing **Bag Skin** applies immediately to both the Bag and PC item lists.
+The game's Options screen contains one **Bag Options** entry. Open it to change
+**Bag Skin**; the choice applies immediately to both the Bag and PC item lists.
+When Useful Bag is installed, its **Fullscreen Bag** toggle is collected on
+the same page, so every Bag presentation setting is managed in one place.
+When Kanto Reforged is installed, its **Bag Give** toggle appears there too.
 
 Modern Bag UI can load alongside **Useful Bag**. Useful Bag's storage patches
 are applied first, then Modern Bag UI owns the shared Bag presentation. The
 game's **Faithful Ratio** option remains authoritative: when enabled, the Bag
 and every prompt it opens use the native 160x144 surface, including on phones.
-Turning Useful Bag's **Fullscreen Bag Menus** option off selects the same
+Turning Useful Bag's **Fullscreen Bag** option off selects the same
 centred native pop-out instead of the responsive full-phone canvas.
+
+Modern Bag UI also loads alongside **Kanto Reforged**. Kanto's pocket
+controller remains authoritative: Berries stay in their own pocket, GIVE is
+kept between USE and TOSS, TMs/HMs retain their sorting rules, closing the Bag
+clears Kanto's active filter, and Kanto's 60-slot capacity is preserved. Both
+Modern Bag skins work on top of those five pockets; in the Pocket skin, the
+Berry pocket uses the backpack's medicine-side compartment so the source
+sprite still has exactly five highlighted regions.
+
+Kanto Reforged shows **GIVE** only outside battle and only for items it marks
+as holdable, such as Berries and held-item equipment. Ordinary consumables
+such as Potions continue to show the normal USE/TOSS actions. If GIVE is
+missing on a holdable item, check **Options → Bag Options → Bag Give** is ON.
 
 The same pocket controls work in the PC item lists. The active operation
 (Withdraw, Deposit or Toss), PC capacity and any confirmation message remain

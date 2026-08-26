@@ -1,7 +1,10 @@
 tests/modern_bag_ui_test.lua
 tests/preview_driver.lua
+tests/kanto_reforged_preview_driver.lua
 tests/fixtures/useful_bag/main.lua
 tests/fixtures/useful_bag/manifest.json
+tests/fixtures/kanto_reforged/main.lua
+tests/fixtures/kanto_reforged/manifest.json
 design-qa.md
 .gitignore
 .github/

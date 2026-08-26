@@ -8,56 +8,144 @@ return function(mod)
     { label = "POCKET", value = "classic_pocket" },
   }
 
-  mod.options:define({
+  local optionSchema = {
     { key = "skin", label = "BAG SKIN", type = "choice",
       default = "modern",
       choices = {
         { SKINS[1].label, SKINS[1].value },
         { SKINS[2].label, SKINS[2].value },
       } },
-  })
+  }
+  mod.options:define(optionSchema)
 
-  local function skinIndex()
-    local current = mod.options:get("skin") or "modern"
+  local usefulBag = mod.find("useful_bag")
+  local kantoReforged = mod.find("Kanto-Reforged")
+
+  local function optionValue(game, owner, key, default)
+    local loader = game and game.mods
+    local bucket = loader and loader.modOptions
+      and loader.modOptions[owner]
+    local value = bucket and bucket[key]
+    if value == nil then
+      local saved = game and game.save and game.save.options
+        and game.save.options.modOptions
+      bucket = saved and saved[owner]
+      value = bucket and bucket[key]
+    end
+    if value == nil and owner == mod.id then
+      value = mod.options:get(key)
+    end
+    if value == nil and loader and loader.optionSchemas then
+      for _, row in ipairs(loader.optionSchemas[owner] or {}) do
+        if row.key == key then value = row.default break end
+      end
+    end
+    if value == nil then return default end
+    return value
+  end
+
+  local function skinIndex(game)
+    local current = optionValue(game, mod.id, "skin", "modern")
     for index, skin in ipairs(SKINS) do
       if skin.value == current then return index end
     end
     return 1
   end
 
-  local function setSkin(game, value)
+  local function setOption(game, owner, key, value)
     local options = game and game.save and game.save.options
     if options then
       options.modOptions = options.modOptions or {}
-      options.modOptions[mod.id] = options.modOptions[mod.id] or {}
-      options.modOptions[mod.id].skin = value
+      options.modOptions[owner] = options.modOptions[owner] or {}
+      options.modOptions[owner][key] = value
     end
     local loader = game and game.mods
     if loader then
       loader.modOptions = loader.modOptions or {}
-      loader.modOptions[mod.id] = loader.modOptions[mod.id] or {}
-      loader.modOptions[mod.id].skin = value
+      loader.modOptions[owner] = loader.modOptions[owner] or {}
+      loader.modOptions[owner][key] = value
       if loader.events then
         loader.events:emit("mod.options_changed",
-          { mod = mod.id, key = "skin", value = value })
+          { mod = owner, key = key, value = value })
       end
     end
   end
 
-  -- Keep the skin beside the game's other display choices instead of hiding
-  -- it one level deeper in the mod manager. Left, Right and A all cycle it.
+  local function bagOptionRows()
+    local rows = {
+      {
+        id = "modern_bag_ui_skin",
+        label = "BAG SKIN",
+        value = function(game) return SKINS[skinIndex(game)].label end,
+        step = function(game, direction)
+          local index = (skinIndex(game) - 1 + (direction or 1))
+            % #SKINS + 1
+          setOption(game, mod.id, "skin", SKINS[index].value)
+          return true
+        end,
+      },
+    }
+    if usefulBag then
+      rows[#rows + 1] = {
+        id = "modern_bag_ui_useful_fullscreen",
+        label = "FULLSCREEN BAG",
+        value = function(game)
+          return optionValue(game, "useful_bag", "fullscreen_menu", true)
+            and "ON" or "OFF"
+        end,
+        step = function(game)
+          local current = optionValue(
+            game, "useful_bag", "fullscreen_menu", true)
+          setOption(game, "useful_bag", "fullscreen_menu", not current)
+          return true
+        end,
+      }
+    end
+    if kantoReforged then
+      rows[#rows + 1] = {
+        id = "modern_bag_ui_kanto_give",
+        label = "BAG GIVE",
+        value = function(game)
+          return optionValue(game, "Kanto-Reforged", "bag_give", true)
+            and "ON" or "OFF"
+        end,
+        step = function(game)
+          local current = optionValue(
+            game, "Kanto-Reforged", "bag_give", true)
+          setOption(game, "Kanto-Reforged", "bag_give", not current)
+          return true
+        end,
+      }
+    end
+    return rows
+  end
+
+  local function openBagOptions(game)
+    local OptionsMenu = require("src.ui.OptionsMenu")
+    local page = OptionsMenu.new(game)
+    -- OptionsMenu.new invokes this hook while constructing itself. Replace
+    -- those main rows with the dedicated Bag page before it is presented.
+    page.rows = bagOptionRows()
+    page.index, page.scroll = 1, 0
+    game.stack:push(page)
+    return true
+  end
+
+  -- Keep the game's main Options list compact: one Bag entry opens a native
+  -- Options-style page containing this mod's setting and, when installed,
+  -- Useful Bag's presentation toggle. The mod manager remains available for
+  -- changing either mod separately.
   mod.hooks:wrap("ui.options.rows", function(next, game, rows)
     local out = next(game, rows)
     if type(out) ~= "table" then return out end
     out[#out + 1] = {
-      id = "modern_bag_ui_skin",
-      label = "BAG SKIN",
-      value = function() return SKINS[skinIndex()].label end,
-      step = function(g, dir)
-        local index = (skinIndex() - 1 + (dir or 1)) % #SKINS + 1
-        setSkin(g, SKINS[index].value)
-        return true
-      end,
+      id = "modern_bag_ui_options",
+      label = "BAG OPTIONS",
+      value = function() return "OPEN" end,
+      activate = openBagOptions,
+      -- Older engine builds treated every custom row as a stepper. Current
+      -- OptionsMenu prefers activate, so Left/Right stay inert and A opens.
+      step = openBagOptions,
     }
     return out
   end)
@@ -91,8 +179,14 @@ return function(mod)
   local makeInventory = loadFactory("inventory.lua")
   if not makeScreen or not makeInventory then return end
 
+  -- Kanto Reforged owns a real five-pocket Bag controller. Capture that
+  -- controller before replacing the shared screen record so the Modern Bag
+  -- can decorate it instead of silently falling back to the stock BagMenu.
+  local upstreamBagScreen = mod.content.screens:get("BagMenu")
   local compatibility = {
     usefulBag = mod.find("useful_bag") ~= nil,
+    kantoReforged = kantoReforged ~= nil,
+    upstreamBagScreen = kantoReforged and upstreamBagScreen or nil,
   }
   local screenOK, bagScreen = pcall(makeScreen, mod, compatibility)
   if not screenOK or type(bagScreen) ~= "table"
@@ -101,7 +195,8 @@ return function(mod)
     return
   end
 
-  local inventoryOK, inventory = pcall(makeInventory, mod, bagScreen)
+  local inventoryOK, inventory = pcall(
+    makeInventory, mod, bagScreen, compatibility)
   if not inventoryOK or type(inventory) ~= "table"
       or type(inventory.playerPC) ~= "table"
       or type(inventory.playerPC.new) ~= "function" then
@@ -109,10 +204,9 @@ return function(mod)
     return
   end
 
-  -- Useful Bag also registers BagMenu. Its optional dependency edge lets it
-  -- install storage/controller patches first; Modern Bag then takes explicit
-  -- ownership of the shared presentation record instead of making the later
-  -- registration fail and silently disabling one of the mods.
+  -- Other bag mods can also register BagMenu. Their optional dependency edge
+  -- lets them install controller/storage behavior first; Modern Bag then owns
+  -- the shared presentation record while retaining compatible controllers.
   if mod.content.screens:get("BagMenu") then
     mod.content.screens:override("BagMenu", bagScreen)
   else

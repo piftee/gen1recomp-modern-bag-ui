@@ -86,22 +86,40 @@ T.eq(#schema, 1, "registers one Bag presentation choice")
 T.eq(schema[1].key, "skin", "the skin setting has a stable saved key")
 T.eq(schema[1].default, "modern", "existing installs keep the modern skin")
 local optionGame = {
+  data = run.data,
   save = { options = {} }, mods = run.loader,
+  stack = { push = function(self, page) self.page = page end },
 }
 local optionRows = Runtime.call("ui.options.rows",
   function(_, base) return base end, optionGame, { { id = "text_speed" } })
-T.eq(optionRows[2] and optionRows[2].id, "modern_bag_ui_skin",
-  "BAG SKIN appears in the normal Options menu")
-T.eq(optionRows[2].value(optionGame), "MODERN",
-  "the Options row reports the default skin")
-optionRows[2].step(optionGame, 1)
-T.eq(optionRows[2].value(optionGame), "POCKET",
-  "the Options row switches to the reference-inspired skin")
+T.eq(#optionRows, 2,
+  "one consolidated Bag entry is added to the normal Options menu")
+T.eq(optionRows[2] and optionRows[2].id, "modern_bag_ui_options",
+  "the consolidated entry has a stable Options row id")
+T.eq(optionRows[2].label, "BAG OPTIONS",
+  "the main Options row clearly identifies the Bag settings page")
+T.check(Font.width(optionRows[2].label) <= 128,
+  "the consolidated Bag entry fits the normal Options box")
+T.eq(optionRows[2].value(optionGame), "OPEN",
+  "the consolidated Bag row advertises its nested page")
+optionRows[2].activate(optionGame)
+local bagOptionRows = optionGame.stack.page and optionGame.stack.page.rows or {}
+T.eq(#bagOptionRows, 1,
+  "the standalone Bag page contains every available Bag setting")
+T.eq(bagOptionRows[1].id, "modern_bag_ui_skin",
+  "the Bag settings page exposes the skin choice")
+T.check(Font.width(bagOptionRows[1].label) <= 128,
+  "the nested Bag label fits its Options box")
+T.eq(bagOptionRows[1].value(optionGame), "MODERN",
+  "the Bag settings page reports the default skin")
+bagOptionRows[1].step(optionGame, 1)
+T.eq(bagOptionRows[1].value(optionGame), "POCKET",
+  "the nested skin row switches to the reference-inspired skin")
 T.eq(optionGame.save.options.modOptions.modern_bag_ui.skin,
   "classic_pocket", "the selected skin is persisted with mod options")
-optionRows[2].step(optionGame, 1)
-T.eq(optionRows[2].value(optionGame), "MODERN",
-  "the Options row cycles back to the original skin")
+bagOptionRows[1].step(optionGame, 1)
+T.eq(bagOptionRows[1].value(optionGame), "MODERN",
+  "the nested skin row cycles back to the original skin")
 
 local record = run.data.screens and run.data.screens.BagMenu
 T.check(type(record) == "table" and type(record.new) == "function",
@@ -716,7 +734,25 @@ local compatibilityGame = {
 local compatibilityRecord = compatibilityRun.data.screens.BagMenu
 local compatibilityPixels = love.graphics.getPixelDimensions
 love.graphics.getPixelDimensions = function() return 998, 1980 end
-compatibilityRun.loader.modOptions.useful_bag = { fullscreen_menu = false }
+local compatibilityMainRows = Runtime.call("ui.options.rows",
+  function(_, base) return base end, compatibilityGame,
+  { { id = "text_speed" } })
+T.eq(compatibilityMainRows[2].id, "modern_bag_ui_options",
+  "the combined mods still expose one consolidated Bag entry")
+compatibilityMainRows[2].activate(compatibilityGame)
+local compatibilityOptions = compatibilityStack:top().rows or {}
+T.eq(#compatibilityOptions, 2,
+  "Useful Bag adds its presentation toggle to the Bag settings page")
+T.eq(compatibilityOptions[2].id, "modern_bag_ui_useful_fullscreen",
+  "the Useful Bag setting has a stable nested row id")
+T.eq(compatibilityOptions[2].value(compatibilityGame), "ON",
+  "Useful Bag fullscreen menus remain enabled by default")
+compatibilityOptions[2].step(compatibilityGame, 1)
+T.eq(compatibilityOptions[2].value(compatibilityGame), "OFF",
+  "the shared Bag page can disable Useful Bag fullscreen menus")
+T.eq(compatibilityGame.save.options.modOptions.useful_bag.fullscreen_menu,
+  false, "the shared page persists Useful Bag's presentation setting")
+compatibilityStack:pop()
 local compatibilityScreen = compatibilityRecord.new(compatibilityGame, {})
 T.check(compatibilityScreen.modernBagUI == true,
   "Modern Bag owns the shared presentation after Useful Bag loads")
@@ -731,11 +767,131 @@ T.check(compatibilityDrawOK,
     .. tostring(compatibilityDrawErr))
 T.eq(compatibilityGame.renderer.uiFill, false,
   "Useful Bag's native pop-out cancels inherited fill scaling")
-compatibilityRun.loader.modOptions.useful_bag.fullscreen_menu = true
+compatibilityOptions[2].step(compatibilityGame, 1)
 T.eq(select(2, compatibilityScreen:uiSize()), 330,
-  "Useful Bag's fullscreen setting restores the tall mobile Bag")
+  "the shared page restores Useful Bag's tall mobile Bag")
 love.graphics.getPixelDimensions = compatibilityPixels
 compatibilityRun.release()
+
+-- Kanto Reforged owns a five-pocket controller rather than only patching
+-- storage. Modern Bag must decorate that controller so Berries, GIVE, pocket
+-- switching, cancel cleanup and the deliberate 60-slot limit all survive.
+local kantoData = T.fixtures.fresh()
+kantoData.items.POTION = {
+  id = "POTION", name = "POTION", price = 300,
+}
+kantoData.items.POKE_BALL = {
+  id = "POKE_BALL", name = "POKé BALL", price = 200, ball = "POKE_BALL",
+}
+kantoData.items.TOWN_MAP = {
+  id = "TOWN_MAP", name = "TOWN MAP", price = 0, keyItem = true,
+}
+kantoData.items.TM_FIX = {
+  id = "TM_FIX", name = "TM01", price = 3000,
+  machine = { kind = "TM", number = 1, move = "FIX_CUT" },
+}
+kantoData.items.CHERI_BERRY = {
+  id = "CHERI_BERRY", name = "CHERI BERRY", price = 600,
+}
+kantoData.palettes = data.palettes
+local kantoRun = T.sdk.loadMods({
+  "mods/modern_bag_ui/tests/fixtures/kanto_reforged",
+  "mods/modern_bag_ui",
+}, { data = kantoData, dev = true })
+T.eq(#kantoRun.errors, 0,
+  "Kanto Reforged and Modern Bag load together without a screen collision")
+T.check(kantoRun.loader.mods["Kanto-Reforged"] ~= nil,
+  "the Kanto Reforged compatibility fixture remains enabled")
+T.eq(Bag.capacity(kantoRun.data), 60,
+  "Kanto Reforged's deliberate 60-slot pocket capacity is preserved")
+
+local kantoStack = { states = {} }
+function kantoStack:push(state) self.states[#self.states + 1] = state end
+function kantoStack:pop() return table.remove(self.states) end
+function kantoStack:top() return self.states[#self.states] end
+local kantoInput = { pressed = {} }
+function kantoInput:wasPressed(key) return self.pressed[key] == true end
+function kantoInput:isDown() return false end
+local kantoGame = {
+  data = kantoRun.data,
+  save = {
+    inventory = {
+      POTION = 2, POKE_BALL = 3, TOWN_MAP = 1,
+      TM_FIX = 1, CHERI_BERRY = 4,
+    },
+    bagOrder = {
+      "POTION", "POKE_BALL", "TOWN_MAP", "TM_FIX", "CHERI_BERRY",
+    },
+    money = 0, party = {}, flags = {}, options = {},
+  },
+  stack = kantoStack,
+  input = kantoInput,
+  mods = kantoRun.loader,
+}
+local kantoMainRows = Runtime.call("ui.options.rows",
+  function(_, base) return base end, kantoGame, { { id = "text_speed" } })
+kantoMainRows[2].activate(kantoGame)
+local kantoOptions = kantoStack:top().rows or {}
+T.eq(#kantoOptions, 2,
+  "Kanto Reforged adds BAG GIVE to the dedicated Bag settings page")
+T.eq(kantoOptions[2].id, "modern_bag_ui_kanto_give",
+  "the Kanto Reforged setting has a stable nested row id")
+T.eq(kantoOptions[2].value(kantoGame), "ON",
+  "Kanto Reforged BAG GIVE remains enabled by default")
+kantoOptions[2].step(kantoGame, 1)
+T.eq(kantoOptions[2].value(kantoGame), "OFF",
+  "the shared Bag settings page can disable Kanto Reforged BAG GIVE")
+T.eq(kantoGame.save.options.modOptions["Kanto-Reforged"].bag_give, false,
+  "the shared page persists Kanto Reforged's BAG GIVE setting")
+kantoOptions[2].step(kantoGame, 1)
+kantoStack:pop()
+
+local kantoRecord = kantoRun.data.screens.BagMenu
+local kantoScreen = kantoRecord.new(kantoGame, {})
+kantoStack:push(kantoScreen)
+T.check(kantoScreen.modernBagUI and kantoScreen.modernBagExternalController,
+  "Modern Bag decorates Kanto Reforged's controller instead of replacing it")
+T.eq(#kantoScreen.modernBagPockets, 5,
+  "Kanto Reforged presents exactly its five native pockets")
+T.eq(kantoScreen.modernBagPockets[1].key, "items",
+  "the combined Bag begins with Kanto Reforged's Items pocket")
+T.eq(kantoScreen.items[1].value, "POTION",
+  "Kanto Reforged's active-pocket filtering survives the Modern skin")
+kantoScreen.onSelectKey(kantoScreen.items[1], kantoScreen)
+T.check(kantoScreen.kantoReorderPreserved,
+  "Kanto Reforged's pocket-aware reorder action survives decoration")
+
+for _ = 1, 4 do kantoScreen:modernBagSwitchPocket(1) end
+T.eq(kantoScreen.modernBagPockets[kantoScreen.modernBagPocket].key, "berries",
+  "left/right navigation reaches Kanto Reforged's Berry pocket")
+T.eq(kantoScreen.items[1].value, "CHERI_BERRY",
+  "Berries remain isolated in Kanto Reforged's Berry pocket")
+T.eq(kantoScreen:modernBagCategoryFor("CHERI_BERRY"), "berries",
+  "the Modern presentation recognizes Kanto Reforged Berry items")
+local kantoDrawOK, kantoDrawErr = pcall(kantoScreen.draw, kantoScreen)
+T.check(kantoDrawOK,
+  "the Kanto Reforged Berry pocket draws in the Modern skin: "
+    .. tostring(kantoDrawErr))
+kantoScreen.index = #kantoScreen.items
+local kantoCancelDrawOK, kantoCancelDrawErr = pcall(
+  kantoScreen.draw, kantoScreen)
+T.check(kantoCancelDrawOK,
+  "Kanto Reforged's native CANCEL row draws safely: "
+    .. tostring(kantoCancelDrawErr))
+kantoScreen.index = 1
+kantoScreen.onChoose(kantoScreen.items[1], kantoScreen)
+local kantoActionMenu = kantoStack:top()
+T.check(kantoActionMenu.kantoGiveMenu,
+  "Kanto Reforged's held-item action menu opens from Modern Bag")
+T.eq(kantoActionMenu.items[2].label, "GIVE",
+  "Kanto Reforged's GIVE action remains between USE and TOSS")
+T.eq(kantoActionMenu.items[3].label, "TOSS",
+  "Modern Bag finds TOSS after the injected GIVE action")
+kantoStack:pop()
+kantoScreen.onCancel()
+T.check(kantoScreen.kantoCancelPreserved,
+  "Kanto Reforged's filter cleanup runs when the Bag is cancelled")
+kantoRun.release()
 
 PaletteFX.setMode(previousMode)
 T.finish()

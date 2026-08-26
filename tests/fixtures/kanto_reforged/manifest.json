@@ -1,0 +1,17 @@
+{
+  "id": "Kanto-Reforged",
+  "name": "Kanto Reforged Compatibility Fixture",
+  "version": "1.5.3",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "content",
+  "game_version": ">=0.0.0-dev <1.0.0",
+  "category": "CONTENT",
+  "priority": 50,
+  "dependencies": [],
+  "optional_dependencies": [],
+  "conflicts": [],
+  "permissions": ["engine_internals"],
+  "experimental": false,
+  "description": "Test-only Kanto Reforged pocket controller fixture."
+}

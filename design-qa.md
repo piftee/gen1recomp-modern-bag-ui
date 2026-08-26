@@ -53,7 +53,10 @@ than five static screenshots of the same sprite.
 
 ## Interaction and responsive checks
 
-- Options → Bag Skin cycles MODERN ↔ POCKET and persists through mod options.
+- Options → Bag Options opens one dedicated settings page. It contains Bag
+  Skin and, when Useful Bag is installed, its Fullscreen Bag toggle; both
+  settings apply immediately and persist through their owning mod options.
+  Kanto Reforged adds its Bag Give toggle to the same page.
 - The active choice applies immediately to new Bag and PC item-list screens.
 - Left/right switching walks Items → Medicine → Poké Balls → TMs/HMs → Key
   Items and moves the backpack highlight through five separate regions. The
@@ -61,6 +64,9 @@ than five static screenshots of the same sprite.
   controller-owned.
 - Desktop, near-square, and portrait layouts render without clipping persistent
   controls or overflowing the UI surface.
+- Kanto Reforged uses its own five-pocket controller beneath both skins.
+  Berries, GIVE, reorder, cancel cleanup, TM/HM behavior and its 60-slot limit
+  remain controller-owned rather than being reconstructed by the presentation.
 
 ## Comparison history
 

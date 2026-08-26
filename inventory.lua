@@ -5,7 +5,8 @@
 local SLOT_MAX = 255
 local STACK_MAX = 999
 
-return function(mod, bagScreen)
+return function(mod, bagScreen, compatibility)
+  compatibility = compatibility or {}
   local Bag = require("src.inventory.Bag")
   local Font = require("src.render.Font")
   local PlayerPC = require("src.ui.PlayerPC")
@@ -26,9 +27,11 @@ return function(mod, bagScreen)
   end
 
   -- Respect a larger capacity installed before this mod instead of reducing
-  -- it.  The public constant is what the native Bag controller already uses.
+  -- it. Kanto Reforged deliberately owns a 60-slot pocket system, so keep its
+  -- limit rather than replacing that controller contract with our 255 slots.
   local currentSlots = tonumber(mod.content.constants:get("bagSize")) or 20
-  local activeSlots = math.max(currentSlots, SLOT_MAX)
+  local activeSlots = compatibility.kantoReforged
+    and currentSlots or math.max(currentSlots, SLOT_MAX)
   if activeSlots ~= currentSlots then
     mod.content.constants:patch("bagSize", activeSlots)
   end

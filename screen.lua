@@ -51,6 +51,27 @@ return function(mod, compatibility)
       blurb = Strings.source("Important items for your adventure.") },
   }
 
+  -- Kanto Reforged exposes these five pockets on its public Bag controller.
+  -- The source id is retained because its controller uses "tmhm", while the
+  -- Modern Bag presentation calls the same visual category "machines".
+  local KANTO_POCKETS = {
+    { key = "items", source = "items", label = "ITEMS", short = "ITEMS",
+      palette = "BROWNMON",
+      blurb = Strings.source("Useful and held items for your journey.") },
+    { key = "balls", source = "balls", label = "POKé BALLS", short = "BALLS",
+      palette = "REDMON",
+      blurb = Strings.source("Devices for catching wild POKéMON.") },
+    { key = "key", source = "key", label = "KEY ITEMS", short = "KEY",
+      palette = "CYANMON",
+      blurb = Strings.source("Important items for your adventure.") },
+    { key = "machines", source = "tmhm", label = "TMs & HMs", short = "TMs",
+      palette = "PURPLEMON",
+      blurb = Strings.source("Machines that teach new moves.") },
+    { key = "berries", source = "berries", label = "BERRIES", short = "BERRY",
+      palette = "GREENMON",
+      blurb = Strings.source("Berries that POKéMON can use or hold.") },
+  }
+
   -- The reference skin uses compact, title-case labels in its rail rather
   -- than the all-caps names used by the modern header and tabs.
   local CLASSIC_POCKET_LABELS = {
@@ -60,6 +81,7 @@ return function(mod, compatibility)
     balls = "Balls",
     machines = "TMs",
     key = "Key",
+    berries = "Berries",
   }
 
   -- The extracted reference backpack has five real compartments. All is a
@@ -72,6 +94,9 @@ return function(mod, compatibility)
     balls = "balls",
     machines = "machines",
     key = "key",
+    -- Kanto's Berry pocket uses the backpack's medicine compartment; both
+    -- configurations therefore keep a five-compartment sprite.
+    berries = "medicine",
   }
   local CLASSIC_BAG_ASSET = mod.path .. "/assets/classic_bag_pockets.png"
 
@@ -85,6 +110,12 @@ return function(mod, compatibility)
     PROTEIN = true, IRON = true, CARBOS = true, CALCIUM = true,
     PP_UP = true, ETHER = true, MAX_ETHER = true,
     ELIXER = true, MAX_ELIXER = true,
+  }
+
+  local BERRIES = {
+    BERRY = true, CHERI_BERRY = true, CHESTO_BERRY = true,
+    PECHA_BERRY = true, RAWST_BERRY = true, ASPEAR_BERRY = true,
+    PERSIM_BERRY = true, LUM_BERRY = true,
   }
 
   local DESCRIPTIONS = {
@@ -517,14 +548,20 @@ return function(mod, compatibility)
       tm = "machines", tms = "machines", hm = "machines",
       hms = "machines", machine = "machines", machines = "machines",
       key = "key", keyitem = "key", keyitems = "key",
+      berry = "berries", berries = "berries",
     }
     return aliases[value]
   end
 
   local function categoryFor(game, id)
+    if not id then return "items" end
     local def = game.data.items[id] or {}
     local explicit = normalizedPocket(def.bagPocket or def.pocket)
     if explicit then return explicit end
+    if BERRIES[id] or def.holdEffect == "berry"
+        or def.holdEffect == "berry_status" then
+      return "berries"
+    end
     if ItemEffects.isBall(id) or def.ball then return "balls" end
     if def.machine then return "machines" end
     if def.keyItem then return "key" end
@@ -532,8 +569,28 @@ return function(mod, compatibility)
     return "items"
   end
 
+  local function pocketsFor(menu)
+    return menu.modernBagPockets or POCKETS
+  end
+
   local function pocketFor(menu)
-    return POCKETS[menu.modernBagPocket or 1]
+    local pockets = pocketsFor(menu)
+    return pockets[menu.modernBagPocket or 1] or pockets[1] or POCKETS[1]
+  end
+
+  local function syncExternalPocketIndex(menu)
+    if not menu.modernBagExternalController then return end
+    local sourceIds = menu.__pocketIds or {}
+    local source = sourceIds[menu.__pocketIndex or 1]
+    local pockets = pocketsFor(menu)
+    for index, pocket in ipairs(pockets) do
+      if pocket.source == source or pocket.key == source then
+        menu.modernBagPocket = index
+        return
+      end
+    end
+    menu.modernBagPocket = math.max(1,
+      math.min(menu.__pocketIndex or 1, #pockets))
   end
 
   local function listConfig(menu)
@@ -552,6 +609,16 @@ return function(mod, compatibility)
     local config = listConfig(menu)
     if config and type(config.order) == "function" then
       return config.order(menu, store) or {}
+    end
+    -- Kanto filters Bag.order globally while one pocket is open. Counts and
+    -- change detection need the complete order, not only the active pocket.
+    if menu.modernBagExternalController then
+      local order = menu.game.save.bagOrder
+      if type(order) == "table" then return order end
+      local ids = {}
+      for id in pairs(store or {}) do ids[#ids + 1] = id end
+      table.sort(ids)
+      return ids
     end
     return Bag.order(menu.game.save)
   end
@@ -604,6 +671,24 @@ return function(mod, compatibility)
   end
 
   local function rebuildPocket(menu, preserveId)
+    if menu.modernBagExternalController then
+      local api = menu.gen1ModernUi
+      if api and type(api.switchPocket) == "function" then
+        api:switchPocket(0)
+      end
+      syncExternalPocketIndex(menu)
+      if preserveId then
+        for index, item in ipairs(menu.items or {}) do
+          if item.value == preserveId then
+            menu.index = index
+            break
+          end
+        end
+      end
+      clampList(menu)
+      menu.modernBagInventorySignature = inventorySignature(menu)
+      return
+    end
     local key = pocketFor(menu).key
     menu.items = makeRows(menu, key)
     if preserveId then
@@ -626,6 +711,12 @@ return function(mod, compatibility)
     return item and item.value or nil
   end
 
+  local function swapId(menu)
+    if menu.modernBagSwapId then return menu.modernBagSwapId end
+    local item = menu.swapIndex and menu.items and menu.items[menu.swapIndex]
+    return item and item.value or nil
+  end
+
   local function syncInventory(menu)
     local signature = inventorySignature(menu)
     if signature ~= menu.modernBagInventorySignature then
@@ -634,11 +725,22 @@ return function(mod, compatibility)
   end
 
   local function switchPocket(menu, delta)
+    if menu.modernBagExternalController then
+      local api = menu.gen1ModernUi
+      if api and type(api.switchPocket) == "function" then
+        api:switchPocket(delta or 0)
+        syncExternalPocketIndex(menu)
+        clampList(menu)
+        menu.modernBagInventorySignature = inventorySignature(menu)
+      end
+      return
+    end
     local current = pocketFor(menu)
     menu.modernBagPocketState[current.key] = {
       id = selectedId(menu), index = menu.index, scroll = menu.scroll,
     }
-    menu.modernBagPocket = ((menu.modernBagPocket - 1 + delta) % #POCKETS) + 1
+    local pockets = pocketsFor(menu)
+    menu.modernBagPocket = ((menu.modernBagPocket - 1 + delta) % #pockets) + 1
     menu.modernBagSwapId = nil
     local nextPocket = pocketFor(menu)
     local saved = menu.modernBagPocketState[nextPocket.key]
@@ -676,7 +778,7 @@ return function(mod, compatibility)
 
   local function pocketCounts(menu)
     local counts = { all = 0, items = 0, medicine = 0, balls = 0,
-      machines = 0, key = 0 }
+      machines = 0, key = 0, berries = 0 }
     local store = itemStore(menu)
     for _, id in ipairs(orderedIds(menu, store)) do
       if included(menu, id) then
@@ -765,6 +867,18 @@ return function(mod, compatibility)
         size - 3 * unit, 2 * unit)
       love.graphics.rectangle("fill", x + 6 * unit, y + 5 * unit,
         2 * unit, 2 * unit)
+    elseif key == "berries" then
+      gray(LIGHT)
+      love.graphics.circle("fill", x + size / 2, y + size / 2 + unit,
+        3 * unit)
+      gray(DARK)
+      love.graphics.rectangle("fill", x + 4 * unit, y,
+        unit, 3 * unit)
+      love.graphics.rectangle("fill", x + 5 * unit, y + unit,
+        2 * unit, unit)
+      gray(BLACK)
+      love.graphics.rectangle("fill", x + 3 * unit, y + 4 * unit,
+        unit, unit)
     end
   end
 
@@ -820,13 +934,14 @@ return function(mod, compatibility)
   local function drawTabs(menu, layout, counts)
     gray(LIGHT)
     love.graphics.rectangle("fill", 0, layout.tabsY, layout.width, layout.tabsH)
+    local pockets = pocketsFor(menu)
     local gap = layout.width >= 210 and 3 or 1
-    local available = layout.width - 8 - gap * (#POCKETS - 1)
-    local tabW = math.floor(available / #POCKETS)
-    local totalW = tabW * #POCKETS + gap * (#POCKETS - 1)
+    local available = layout.width - 8 - gap * (#pockets - 1)
+    local tabW = math.floor(available / #pockets)
+    local totalW = tabW * #pockets + gap * (#pockets - 1)
     local x0 = math.floor((layout.width - totalW) / 2)
 
-    for index, pocket in ipairs(POCKETS) do
+    for index, pocket in ipairs(pockets) do
       local x = x0 + (index - 1) * (tabW + gap)
       local active = index == menu.modernBagPocket
       if active then
@@ -901,7 +1016,7 @@ return function(mod, compatibility)
         qWidth + 8, shade)
       if selected then
         drawCode(Theme.cursor, layout.listX + 7, y + 1, shade)
-      elseif item.value == menu.modernBagSwapId then
+      elseif item.value == swapId(menu) then
         drawCode(Theme.cursorHollow, layout.listX + 7, y + 1, BLACK)
       end
     end
@@ -933,6 +1048,7 @@ return function(mod, compatibility)
   end
 
   local function itemDescription(menu, id)
+    if not id then return Strings("Return to the previous screen.") end
     local def = menu.game.data.items[id] or {}
     if type(def.description) == "string" and def.description ~= "" then
       return Strings(def.description)
@@ -952,6 +1068,8 @@ return function(mod, compatibility)
       return Strings("An item intended for use in battle.")
     elseif category == "key" then
       return Strings("An important item for your adventure.")
+    elseif category == "berries" then
+      return Strings("A Berry that a POKéMON can use or hold.")
     end
     return Strings("A useful item for your journey.")
   end
@@ -1108,7 +1226,7 @@ return function(mod, compatibility)
     end
     if layout.stacked then
       local line1, line2
-      if menu.modernBagSwapId then
+      if swapId(menu) then
         line1 = Strings("CHOOSE NEW POSITION")
         line2 = Strings("A PLACE  B BACK")
       else
@@ -1125,7 +1243,7 @@ return function(mod, compatibility)
     end
 
     local message
-    if menu.modernBagSwapId then
+    if swapId(menu) then
       message = Strings("CHOOSE A NEW POSITION")
     elseif layout.wide then
       message = Strings("L/R POCKET  A SELECT  B BACK")
@@ -1253,7 +1371,12 @@ return function(mod, compatibility)
     end
 
     local sprites = {}
-    for _, pocket in ipairs(POCKETS) do
+    local spritePockets = {}
+    for _, pocket in ipairs(POCKETS) do spritePockets[#spritePockets + 1] = pocket end
+    for _, pocket in ipairs(KANTO_POCKETS) do
+      spritePockets[#spritePockets + 1] = pocket
+    end
+    for _, pocket in ipairs(spritePockets) do
       local okData, data = pcall(Assets.imageData, CLASSIC_BAG_ASSET)
       if not okData or not data or not data.mapPixel then
         classicBagSprites = false
@@ -1261,7 +1384,8 @@ return function(mod, compatibility)
       end
       data:mapPixel(function(x, y, r, g, b, a)
         local region = classicBagRegionAt(x, y)
-        local active = region and pocket.key == region
+        local active = region
+          and (CLASSIC_BAG_REGIONS[pocket.key] or pocket.key) == region
 
         -- The source screenshot shows its left pocket selected. Neutralize
         -- that fill first, then apply the same black fill as every other
@@ -1370,7 +1494,7 @@ return function(mod, compatibility)
       local qWidth = Font.width(quantity)
       if selected then
         drawCode(Theme.cursor, layout.listX + 8, y, DARK)
-      elseif item.value == menu.modernBagSwapId then
+      elseif item.value == swapId(menu) then
         drawCode(Theme.cursorHollow, layout.listX + 8, y, BLACK)
       end
       drawText(item.label, layout.listX + 20, y,
@@ -1404,10 +1528,11 @@ return function(mod, compatibility)
     local text
     if status then
       text = Strings(status):gsub("\n", " ")
-    elseif menu.modernBagSwapId then
-      local def = menu.game.data.items[menu.modernBagSwapId] or {}
+    elseif swapId(menu) then
+      local swapping = swapId(menu)
+      local def = menu.game.data.items[swapping] or {}
       text = Strings("Choose a new position for %s.",
-        def.name or menu.modernBagSwapId)
+        def.name or swapping)
     else
       local item = menu.items[menu.index]
       text = item and itemDescription(menu, item.value)
@@ -1665,7 +1790,13 @@ return function(mod, compatibility)
 
   local function installTossPrompts(menu, item)
     local actionMenu = menu.game.stack:top()
-    local tossRow = actionMenu and actionMenu.items and actionMenu.items[2]
+    local tossRow
+    for _, row in ipairs(actionMenu and actionMenu.items or {}) do
+      if tostring(row.label or ""):upper() == "TOSS" then
+        tossRow = row
+        break
+      end
+    end
     if not tossRow or type(tossRow.onSelect) ~= "function"
         or actionMenu.__modernBagTossPrompts then
       return
@@ -1742,24 +1873,37 @@ return function(mod, compatibility)
     decorateList = decorateList,
     new = function(game, opts)
       installOverlayBridge(game)
-      local menu = BagMenu.new(game, opts)
+      local upstream = compatibility.kantoReforged
+        and compatibility.upstreamBagScreen
+      local menu = upstream and upstream.new(game, opts)
+        or BagMenu.new(game, opts)
+      local externalController = upstream ~= nil
+        and type(menu.__pocketIndex) == "number"
+        and type(menu.__pocketIds) == "table"
+        and type(menu.gen1ModernUi) == "table"
+        and type(menu.gen1ModernUi.switchPocket) == "function"
       local baseChoose = menu.onChoose
       menu.modernBagBaseUpdate = menu.update
       menu.modernBagPocket = 1
       menu.modernBagPocketState = {}
       menu.modernBagSwapId = nil
+      menu.modernBagExternalController = externalController
+      menu.modernBagPockets = externalController and KANTO_POCKETS or POCKETS
+      syncExternalPocketIndex(menu)
       menu.rows = layoutFor(menu).rows
 
-      menu.onSelectKey = function(item, list)
-        reorder(list, item)
+      if not externalController then
+        menu.onSelectKey = function(item, list)
+          reorder(list, item)
+        end
       end
       menu.onChoose = function(item, list)
-        if list.modernBagSwapId then
+        if not externalController and list.modernBagSwapId then
           finishSwap(list, item and item.value)
           return
         end
         local result = baseChoose(item, list)
-        installTossPrompts(list, item)
+        if item and item.value then installTossPrompts(list, item) end
         return result
       end
 
@@ -1779,7 +1923,6 @@ return function(mod, compatibility)
       menu.holdsUIAnchors = true
       menu.modernBagUI = true
       menu.modernBagLayout = "pockets"
-      menu.modernBagPockets = POCKETS
       menu.modernBagCategoryFor = function(_, id) return categoryFor(game, id) end
       menu.modernBagLayoutInfo = function() return layoutFor(menu) end
       menu.modernBagSwitchPocket = switchPocket

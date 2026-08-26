@@ -126,8 +126,8 @@ return function(game)
   U.wait(8)
   U.shot(game, DIR .. "/modern_bag_mobile_toss_confirm.png")
 
-  -- The alternate reference-inspired skin is selected from the normal
-  -- Options menu and immediately applies to both responsive Bag layouts.
+  -- The alternate reference-inspired skin is selected from the dedicated
+  -- Bag Options page and immediately applies to both responsive layouts.
   love.window.setMode(1280, 720, {
     resizable = true, minwidth = 640, minheight = 576,
   })
@@ -141,18 +141,24 @@ return function(game)
     game.save.options.modOptions.modern_bag_ui or {}
   game.save.options.modOptions.modern_bag_ui.skin = "modern"
   local options = Screens.push(game, "OptionsMenu")
-  local skinRow
+  local bagOptionsRow
   for index, row in ipairs(options.rows) do
-    if row.id == "modern_bag_ui_skin" then
-      skinRow = row
+    if row.id == "modern_bag_ui_options" then
+      bagOptionsRow = row
       options.index = index
       options.scroll = math.max(0, index - 4)
       break
     end
   end
-  if skinRow then skinRow.step(game, 1) end
+  if bagOptionsRow then bagOptionsRow.activate(game) end
+  local bagOptions = game.stack:top()
+  local skinRow = bagOptions and bagOptions.rows and bagOptions.rows[1]
+  if skinRow and skinRow.id == "modern_bag_ui_skin" then
+    skinRow.step(game, 1)
+  end
   U.wait(8)
-  U.shot(game, DIR .. "/bag_skin_option.png")
+  U.shot(game, DIR .. "/bag_options.png")
+  game.stack:pop()
   game.stack:pop()
 
   for _, id in ipairs({ "MOON_STONE", "NUGGET", "MAX_REPEL" }) do
