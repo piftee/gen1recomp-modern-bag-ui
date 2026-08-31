@@ -124,9 +124,12 @@ return function(mod)
     local OptionsMenu = require("src.ui.OptionsMenu")
     local page = OptionsMenu.new(game)
     -- OptionsMenu.new invokes this hook while constructing itself. Replace
-    -- those main rows with the dedicated Bag page before it is presented.
-    page.rows = bagOptionRows()
-    page.index, page.scroll = 1, 0
+    -- both its source rows and its already-grouped visible rows. Gen 2 caches
+    -- that view during construction, so changing only page.rows leaves the
+    -- parent Options list active underneath the apparent submenu.
+    local rows = bagOptionRows()
+    page.rows, page.view = rows, rows
+    page.index, page.scroll, page.sub = 1, 0, true
     game.stack:push(page)
     return true
   end
@@ -149,6 +152,15 @@ return function(mod)
     }
     return out
   end)
+
+  local GameVersion = require("src.core.GameVersion")
+  if type(GameVersion.generation) == "function"
+      and GameVersion.generation() == 2 then
+    return require("mods.modern_bag_ui.gen2")(mod, {
+      skins = SKINS,
+      skinIndex = skinIndex,
+    })
+  end
 
   local function loadFactory(filename)
     local source, readErr = mod:read(filename)

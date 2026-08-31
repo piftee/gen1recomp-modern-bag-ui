@@ -3,6 +3,9 @@
 Modern Bag UI rebuilds the bare item list as a responsive, pocket-based Bag
 while keeping Gen 1's font, palettes, sounds and item behavior.
 
+On Gold, Silver, and Crystal it decorates the native four-pocket PACK and Item
+PC controllers, preserving Gen 2 quantities, pocket rules, and item actions.
+
 **[Download the latest installable release](https://github.com/piftee/gen1recomp-modern-bag-ui/releases/latest)**
 
 ## What changes
