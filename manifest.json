@@ -1,9 +1,10 @@
 {
   "id": "modern_bag_ui",
   "name": "Modern Bag UI",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "github": "piftee/gen1recomp-modern-bag-ui",
   "api": 2,
+  "games": ["gen1", "gen2"],
   "entry": "main.lua",
   "profile": "content",
   "game_version": ">=0.0.0-dev <1.0.0",
@@ -15,5 +16,5 @@
   "incompatible": [],
   "permissions": ["engine_internals"],
   "experimental": false,
-  "description": "Two swappable responsive Bag and PC skins with 255 slots and x999 stacks."
+  "description": "Responsive Gen 1 Bag/PC skins plus a native four-pocket Pack and Item PC presentation for Gen 2."
 }
