@@ -410,6 +410,33 @@ game.renderer = nil
 T.eq(select(2, screen:uiSize()), portraitH,
   "turning FAITHFUL RATIO off restores the responsive portrait Bag")
 
+-- Responsive overlays translate their classic 160x144 drawing into the
+-- Bag surface. Full-colour move cards and sprites must publish palette marks
+-- at that translated position too, or the active pocket palette cuts those
+-- cards into mismatched colour bands.
+do
+  love.graphics.getPixelDimensions = function() return 1280, 720 end
+  local shiftedMarks = {}
+  local shiftedMark = PaletteFX.markTrueColor
+  PaletteFX.markTrueColor = function(x, y, w, h)
+    shiftedMarks[#shiftedMarks + 1] = { x = x, y = y, w = w, h = h }
+  end
+  local colorOverlay = {
+    draw = function() PaletteFX.markTrueColor(10, 12, 8, 8) end,
+  }
+  stack:push(colorOverlay)
+  local colorDrawOK, colorDrawErr = pcall(colorOverlay.draw, colorOverlay)
+  stack:pop()
+  PaletteFX.markTrueColor = shiftedMark
+  love.graphics.getPixelDimensions = function() return 998, 1980 end
+  T.check(colorDrawOK,
+    "a full-colour responsive overlay draws: " .. tostring(colorDrawErr))
+  T.eq(shiftedMarks[1] and shiftedMarks[1].x, 58,
+    "overlay true-colour marks follow the 48px wide-surface translation")
+  T.eq(shiftedMarks[1] and shiftedMarks[1].y, 12,
+    "landscape overlay true-colour marks keep their vertical position")
+end
+
 -- A transparent overlay may already declare the classic 160x144 surface.
 -- It still belongs inside the Bag composition rather than replacing it.
 local preSizedOverlay = {
@@ -609,6 +636,27 @@ Bag.remove(game.save, "POTION", 1)
 local drawOK, drawErr = pcall(screen.draw, screen)
 T.check(drawOK, "the complete Bag draws headlessly: " .. tostring(drawErr))
 T.eq(screen.items[2].right, "x2", "live quantities refresh in the pocket")
+
+-- Some item/party controllers rebuild the native complete Bag list while the
+-- selected pocket stays unchanged. The inventory signature may be identical,
+-- so membership itself must trigger restoration of the active pocket.
+screen:modernBagSwitchPocket(2) -- Medicine -> TMs/HMs
+T.eq(screen.modernBagPockets[screen.modernBagPocket].key, "machines",
+  "the regression setup reaches the TM/HM pocket")
+screen.items = {
+  { value = "POTION", label = "POTION", right = "x2" },
+  { value = "TM_FIX", label = "TM01", right = "x1" },
+  { value = "TOWN_MAP", label = "TOWN MAP", right = "x1" },
+}
+local restoredPocketOK, restoredPocketErr = pcall(screen.draw, screen)
+T.check(restoredPocketOK,
+  "the active pocket recovers after an item-use row reset: "
+    .. tostring(restoredPocketErr))
+T.eq(#screen.items, 1,
+  "the TM/HM pocket removes rows injected by a native all-items refresh")
+T.eq(screen.items[1] and screen.items[1].value, "TM_FIX",
+  "the TM/HM pocket keeps its machine after automatic restoration")
+screen:modernBagSwitchPocket(-2) -- back to Medicine
 
 local zones = screen:sgbPalettes(game) or {}
 T.check(#zones >= 3, "the Bag emits base, pocket and detail palette regions")

@@ -719,7 +719,24 @@ return function(mod, compatibility)
 
   local function syncInventory(menu)
     local signature = inventorySignature(menu)
-    if signature ~= menu.modernBagInventorySignature then
+    local pocket = pocketFor(menu)
+    local rowsMatchPocket = true
+    if pocket and pocket.key ~= "all" then
+      for _, item in ipairs(menu.items or {}) do
+        if item.value
+            and categoryFor(menu.game, item.value) ~= pocket.key then
+          rowsMatchPocket = false
+          break
+        end
+      end
+    end
+    -- Native and companion item-use controllers are allowed to rebuild the
+    -- Bag's rows while PartyMenu owns input. Some rebuild the cartridge's
+    -- complete item list without changing inventory, so the quantity-only
+    -- signature cannot notice the damage. Validate the visible membership as
+    -- well and reapply the active pocket before drawing it again.
+    if signature ~= menu.modernBagInventorySignature
+        or not rowsMatchPocket then
       rebuildPocket(menu, selectedId(menu))
     end
   end
@@ -1755,14 +1772,21 @@ return function(mod, compatibility)
           state.draw = function(active)
             local width, height = active:uiSize()
             local offsetX, offsetY = overlayOffset(active)
+            local originalMark = PaletteFX.markTrueColor
+            PaletteFX.markTrueColor = function(x, y, w, h)
+              return originalMark(x + offsetX, y + offsetY, w, h)
+            end
             love.graphics.push("all")
             if active.isOpaque and (offsetX > 0 or offsetY > 0) then
               gray(BLACK)
               love.graphics.rectangle("fill", 0, 0, width, height)
             end
             love.graphics.translate(offsetX, offsetY)
-            baseDraw(active)
+            local ok, result = pcall(baseDraw, active)
             love.graphics.pop()
+            PaletteFX.markTrueColor = originalMark
+            if not ok then error(result, 0) end
+            return result
           end
         end
 

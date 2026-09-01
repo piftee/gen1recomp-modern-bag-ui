@@ -1,4 +1,5 @@
 tests/modern_bag_ui_test.lua
+tests/gen2_bag_widescreen_test.lua
 tests/preview_driver.lua
 tests/kanto_reforged_preview_driver.lua
 tests/fixtures/useful_bag/main.lua
