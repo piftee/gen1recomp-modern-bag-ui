@@ -326,7 +326,14 @@ return function(mod, shared)
     menu.classicGen2PackPanel = nativePanel
     menu.drawPanel = function(self)
       if option(self.game or game, "skin", "modern") == "classic_pocket" then
-        return nativePanel(self)
+        local width = tonumber(self.modernBagWideWidth) or 160
+        if width <= 160 then return nativePanel(self) end
+        love.graphics.push()
+        love.graphics.translate(math.floor((width - 160) / 2), 0)
+        local ok, result = pcall(nativePanel, self)
+        love.graphics.pop()
+        if not ok then error(result, 0) end
+        return result
       end
       return modernPackPanel(self)
     end

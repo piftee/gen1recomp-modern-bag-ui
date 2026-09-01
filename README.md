@@ -5,6 +5,8 @@ while keeping Gen 1's font, palettes, sounds and item behavior.
 
 On Gold, Silver, and Crystal it decorates the native four-pocket PACK and Item
 PC controllers, preserving Gen 2 quantities, pocket rules, and item actions.
+The source-faithful Pocket skin stays centred at its native aspect ratio on
+wide displays.
 
 **[Download the latest installable release](https://github.com/piftee/gen1recomp-modern-bag-ui/releases/latest)**
 
