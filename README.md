@@ -1,5 +1,8 @@
 # Modern Bag UI
 
+> [!IMPORTANT]
+> **This standalone mod has been superseded by [Modern UI Suite](https://github.com/piftee/gen1recomp-modern-ui-suite).** It remains available for existing installs, but future fixes and features will be maintained in the suite. Disable this standalone mod before enabling the suite; the suite imports its saved settings automatically.
+
 Modern Bag UI rebuilds the bare item list as a responsive, pocket-based Bag
 while keeping Gen 1's font, palettes, sounds and item behavior.
 
